@@ -1,0 +1,349 @@
+﻿;-----------------------------------------
+;打印モンスター角色列表
+;显示モンスター的全称 レベル 标签或者战斗属性
+;可以按照星级，レベル，战斗属性的顺序进行排序
+;全部采用降序
+;选用于排序的属性用黄色进行表示
+;ARG 数值代表详细程度 0为主界面来的名单 1为派遣モンスター时使用的名单（不可以选择魔王） 2为装备发生改变时的名单（可以选择魔王） 3为融合モンスター时用的名单
+;样式
+;-----------------♥ モンスター名单 ♥-----------------
+;当前モンスター数量为XXX
+;除魔王外，5星以上モンスター有 5星モンスター有 4星モンスター有 3星モンスター有 2星モンスター有 1星モンスター有
+;每日因モンスター消耗的水晶量为
+;每日因设施消耗的水晶量为
+;
+;(2)(6)(8)(18)(24)6+6+6+6(24)(9)
+;--星级--レベル----名字--------------标签--------------------地宫位置-
+;
+;================================================
+;按照 [500]星级 [501]レベル [502]生命值 [503]攻撃力 [504]防御力 [505]速度 进行排序
+;
+;[999]返回  [600]上一页  [601]下一页（如果数量超过15个）
+
+@PRINT_SUCCUBUS_LIST,ARG
+#DIM COUNT1
+#DIM COUNT2
+#DIM COUNT3
+#DIM COUNT4
+#DIM SUM_NUM
+;决定按照什么方式排序，0为星级，1为レベル，2为生命值，3为攻撃力，4为防御力，5为速度
+#DIM SORT_STATE = 0
+;决定升序还是降序 0为降序，1为升序
+#DIM SORT_FUNCTION
+
+;显示第几页的モンスター名单
+#DIM PAPER_STATE
+#DIM MAX_PAPER
+#DIM SORT_LIST,300
+#DIM SORT_FLAG,300
+#DIM MAX_VALUE
+#DIM MAX_NO
+#DIMS SELECT_STRING
+#DIM MEMO_LINECOUNT
+#DIM MEMO_LINECOUNT2
+
+MEMO_LINECOUNT = LINECOUNT
+$SORT_CHANGE
+
+CALL SORT_SUCCUBUS_LIST, 0, 3
+SUM_NUM = RESULT
+;最大页数 从0开始
+MAX_PAPER = SUM_NUM/15
+
+CALL PRINT_LIST_TITLE, ARG, SUM_NUM
+
+;按照要求先把モンスター的编号放入LIST
+;每一页显示15个モンスター
+VARSET SORT_LIST, 0
+VARSET SORT_FLAG, 0
+SORT_LIST:0 = 0
+FOR COUNT1, 1, SUM_NUM + 1
+    IF SORT_FUNCTION == 0
+        MAX_VALUE = 0
+    ELSE
+        MAX_VALUE = 99999
+    ENDIF 
+
+    FOR COUNT2, 1, SUM_NUM + 1
+        IF SORT_FLAG:COUNT2 == 1
+            CONTINUE
+        ENDIF
+        LOCAL = SUCCUBUS:COUNT2
+
+        SELECTCASE SORT_STATE
+            CASE 0
+                LOCAL:1 = BASE:LOCAL:星级
+            CASE 1
+                LOCAL:1 = BASE:LOCAL:レベル
+            CASE 2
+                LOCAL:1 = BASE:LOCAL:HP
+            CASE 3
+                LOCAL:1 = BASE:LOCAL:攻撃力
+            CASE 4
+                LOCAL:1 = BASE:LOCAL:防御力
+            CASE 5
+                LOCAL:1 = BASE:LOCAL:速度
+        ENDSELECT
+        IF SORT_FUNCTION == 0
+            IF MAX_VALUE < LOCAL:1
+                MAX_VALUE = LOCAL:1
+                MAX_NO = LOCAL
+            ENDIF
+        ELSE
+            IF MAX_VALUE > LOCAL:1
+                MAX_VALUE = LOCAL:1
+                MAX_NO = LOCAL
+            ENDIF
+        ENDIF
+    NEXT
+    SORT_FLAG:MAX_NO = 1
+    SORT_LIST:COUNT1 = MAX_NO
+NEXT    
+
+MEMO_LINECOUNT2 = LINECOUNT
+;改页数和显示方式时时回到这里
+$PAPER_CHANGE
+
+;(2)(6)(8)(21)(24)6+6+6+6(26)(9)
+;--星级--レベル----名称-----------------HP----ATT---DEF---SPE---标签----------------------地宫位置-
+ALIGNMENT RIGHT
+PRINTFORML 第{PAPER_STATE+1}/{MAX_PAPER+1}页
+ALIGNMENT LEFT
+VARSET LOCALS
+SELECT_STRING =  --_RANK_--_LEVEL_---NAME-----------------_HP_----_ATT_---_DEF_---_SPE_---TAGS----------------------地宫位置-
+SPLIT SELECT_STRING, "_", LOCALS
+FOR COUNT1,0,100
+    IF COUNT1 == SORT_STATE *2 + 1
+        IF SORT_FUNCTION == 0
+            SETCOLOR 0xEFD540
+        ELSE
+            SETCOLOR 0x4470EF
+        ENDIF
+    ENDIF
+    PRINTFORM %LOCALS:COUNT1%
+    RESETCOLOR
+NEXT
+
+
+;(2)(6)(8)(21)(24)6+6+6+6(24)(11)
+LOCALS =  
+
+FOR COUNT1,15*PAPER_STATE,MIN(15*(1+PAPER_STATE), SUM_NUM + 1)
+    ;准备打印的モンスター编号
+    LOCAL = SORT_LIST:COUNT1
+    LOCALS = %BL(2)%
+
+    IF COUNT1 == 0
+        LOCAL:1 = NUM("魔王星级", BASE:LOCAL:种族)
+        LOCALS:1 = {LOCAL:1}★
+    ELSEIF BASE:LOCAL:星级>5
+        LOCALS:1 = {BASE:LOCAL:星级}★
+    ELSE
+        LOCALS:1 = {BASE:LOCAL:星级}☆
+    ENDIF
+    LOCALS = %LOCALS%%TEXT_LJ(LOCALS:1, 6)%
+
+    LOCALS:1 = Lv.{BASE:LOCAL:レベル}
+    LOCALS = %LOCALS%%TEXT_LJ(LOCALS:1, 8)%
+
+    CALL CALL_SUCCUBUS_NAME, LOCAL, 0
+    LOCALS = %LOCALS%%TEXT_LJ(TEXT_RETURN:0, 21)%
+    
+    LOCALS:1 = {BASE:LOCAL:HP}
+    LOCALS = %LOCALS%%TEXT_LJ(LOCALS:1, 6)%
+    LOCALS:1 = {BASE:LOCAL:攻撃力}
+    LOCALS = %LOCALS%%TEXT_LJ(LOCALS:1, 6)%
+    LOCALS:1 = {BASE:LOCAL:防御力}
+    LOCALS = %LOCALS%%TEXT_LJ(LOCALS:1, 6)%
+    LOCALS:1 = {BASE:LOCAL:速度}
+    LOCALS = %LOCALS%%TEXT_LJ(LOCALS:1, 6)%
+
+    CALL SUCCUBUS_LABLE, LOCAL
+    LOCALS = %LOCALS%%TEXT_LJ(TEXT_RETURN:0, 26)%
+
+    CALL WHERE_IS_SUCCUBUS, LOCAL
+    LOCALS = %LOCALS%%TEXT_LJ(TEXT_RETURN:0, 9)%
+
+    PRINTBUTTON LOCALS, COUNT1
+    PRINTL
+NEXT
+
+DRAWLINEFORM =
+
+;按照 [500]星级 [501]レベル [502]生命值 [503]攻撃力 [504]防御力 [505]速度 进行排序
+SELECT_STRING = [500]RANK _[501]LEVEL _[502]HP _[503]攻撃力 _[504]防御力 _[505]速度 
+VARSET LOCALS
+SPLIT SELECT_STRING, "_", LOCALS
+FOR COUNT1, 0, 100
+    IF COUNT1 == SORT_STATE
+        IF SORT_FUNCTION == 0
+            SETCOLOR 0xEFD540
+        ELSE
+            SETCOLOR 0x4470EF
+        ENDIF
+    ENDIF
+    PRINTFORM %LOCALS:COUNT1%
+    RESETCOLOR
+NEXT
+
+PRINTL に並べ替える
+PRINTL
+
+;[999]返回  [600]上一页  [601]下一页（如果数量超过15个）
+IF ARG != 3
+    CALL PRINT_BUTTON_17,"戻る",999,1
+ELSEIF ARG == 3
+    CALL PRINT_BUTTON_17,"戻る",999,1
+ENDIF
+
+IF PAPER_STATE > 0 
+    CALL PRINT_BUTTON_17,"前のページ",600,1
+ELSE
+    CALL PRINT_BUTTON_17,"前のページ",600,0
+ENDIF
+
+IF PAPER_STATE < MAX_PAPER
+    CALL PRINT_BUTTON_17,"次のページ",601,1
+ELSE
+    CALL PRINT_BUTTON_17,"次のページ",601,0
+ENDIF
+
+IF ARG == 3
+    CALL PRINT_BUTTON_17,"一番目の素材を削除",998,1
+    CALL PRINT_BUTTON_17,"一番目の素材を削除",997,1
+ENDIF
+
+;输入与处理
+$INPUT_LOOP
+INPUT
+SELECTCASE RESULT
+    CASE 999
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        RETURN 999
+    
+    CASE 600
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT2
+        PAPER_STATE -= 1
+        GOTO PAPER_CHANGE
+
+    CASE 601
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT2
+        PAPER_STATE += 1
+        GOTO PAPER_CHANGE
+
+    CASE 602
+        RETURN 998
+    CASE 603
+        RETURN 997
+    
+    CASE 500 TO 506
+        PAPER_STATE = 0
+        IF SORT_STATE == RESULT - 500
+            SORT_FUNCTION = (SORT_FUNCTION + 1) % 2
+        ELSE
+            SORT_FUNCTION = 0
+        ENDIF
+        SORT_STATE = RESULT - 500
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO SORT_CHANGE
+
+    CASE 0 TO SUM_NUM + 1
+        LOCAL = SORT_LIST:RESULT
+        IF ARG == 0
+            CALL PRINT_CHARA,LOCAL
+        ELSEIF ARG == 1
+            IF LOCAL != MASTER
+                RETURN LOCAL
+            ENDIF
+        ELSEIF ARG == 2
+            RETURN LOCAL
+        ELSEIF ARG == 3
+            IF LOCAL != MASTER
+                RETURN LOCAL
+            ENDIF
+        ENDIF
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO SORT_CHANGE
+    CASEELSE
+        GOTO INPUT_LOOP
+ENDSELECT
+
+
+;-----------------------------------------------
+;打印名单的开头
+@PRINT_LIST_TITLE, ARG, ARG:1
+#DIM SUM_NUM
+#DIM COUNT1
+#DIM COUNT2
+#DIM STAR_COUNT, 7
+#DIM SCOST
+#DIM RCOST
+VARSET STAR_COUNT, 0
+SUM_NUM = ARG:1
+
+IF ARG == 0
+    PRINTL
+    CALL DRAWLINES_CENTER_DIY, "♥ リスト ♥", "-"
+
+    PRINTFORML 今のマスター数は {SUM_NUM}
+
+    FOR COUNT1, 1, SUM_NUM + 1
+        COUNT2 = SUCCUBUS:COUNT1
+        IF BASE:COUNT2:星级>5
+            STAR_COUNT:6 += 1
+        ELSE
+            STAR_COUNT:(BASE:COUNT2:星级) += 1
+        ENDIF
+    NEXT
+
+    PRINTFORML 魔王以外、RANK5以上は{STAR_COUNT:6}匹 RANK5は{STAR_COUNT:5}匹 RANK4は{STAR_COUNT:4}匹 RANK3は{STAR_COUNT:3}匹 RANK2は{STAR_COUNT:2}匹 RANK1は{STAR_COUNT:1}匹
+
+    CALL SUCCUBUS_COST
+    SCOST = RESULT
+    CALL PRINT_STRL, @"■ 毎日_黄色_モンスター_に消費した水晶の数は {SCOST}"
+
+    CALL ROOM_COST
+    RCOST = RESULT
+    CALL PRINT_STRL, @"■ 毎日_黄色_施設維持_に消費した水晶の数は {RCOST}"
+
+    PRINTL
+
+    LOCALS = _黄色_黄色ボタン_、_青_青色ボタン_は今の並べ替え方式。_黄色_黄色ボタン_は降順、_青_青色ボタン_は昇順。
+    CALL PRINT_STRL,@"※ %LOCALS%"
+
+    LOCALS = 魔王は一位に固定している
+    CALL PRINT_STRL,@"※ %LOCALS%"
+    PRINTL
+
+ELSEIF ARG == 1
+    PRINTL
+    PRINTL
+    PRINTFORML 戦闘施設に派遣したいモンスターは(魔王自体は派遣できない)
+    LOCALS = _黄色_黄色ボタン_、_青_青色ボタン_は今の並べ替え方式。_黄色_黄色ボタン_は降順、_青_青色ボタン_は昇順。为升序。
+    CALL PRINT_STRL,@"※ %LOCALS%"
+
+    LOCALS = 魔王は一位に固定している
+    CALL PRINT_STRL,@"※ %LOCALS%"
+    PRINTL
+
+ELSEIF ARG == 2
+    PRINTL
+    
+    PRINTFORML どのモンスターに装備するか
+    LOCALS = _黄色_黄色ボタン_、_青_青色ボタン_は今の並べ替え方式。_黄色_黄色ボタン_は降順、_青_青色ボタン_は昇順。
+    CALL PRINT_STRL,@"※ %LOCALS%"
+    LOCALS = 魔王は一位に固定している
+    CALL PRINT_STRL,@"※ %LOCALS%"
+    PRINTL
+
+ELSE ARG == 3
+    PRINTL 
+
+    PRINTFORML 融合したいモンスターを選択ください
+    LOCALS = _黄色_黄色ボタン_、_青_青色ボタン_は今の並べ替え方式。_黄色_黄色ボタン_は降順、_青_青色ボタン_は昇順。
+    CALL PRINT_STRL,@"※ %LOCALS%"
+    LOCALS = 魔王は一位に固定しているが、融合素材にできない
+    CALL PRINT_STRL,@"※ %LOCALS%"
+    PRINTL
+
+ENDIF

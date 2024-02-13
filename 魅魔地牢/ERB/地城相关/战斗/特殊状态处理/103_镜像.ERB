@@ -1,0 +1,87 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;反射为双方都有的状态属性。企图攻击该目标的单位将会以两倍的攻撃力攻击自己，每次发动减少反射残片的数值
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_103, ARG
+SIF ARG <= 0
+    RETURN 0
+SIF ARG <= ENEMY_STATE:ARG:203
+    RETURN 0
+LOCAL = ENEMY_STATE:ARG:103
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_103, ARG
+SIF ARG<0
+    RETURN 0
+SIF CFLAG:ARG:103 <= CFLAG:ARG:203
+    RETURN 0
+LOCAL = CFLAG:ARG:103
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_103, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+
+ENEMY_STATE:ARG:103 += ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_103, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+
+CFLAG:ARG:103 += ARG:1
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;ARG:1攻撃力 ARG:2为攻击的モンスター编号 ARG:3为攻击的勇者的编号
+;企图攻击该目标的单位将会以两倍的攻撃力攻击自己，每次发动减少反射残片的数值
+@DECREASE_ENEMY_STATE_103, ARG, ARG:1, ARG:2, ARG:3
+#DIM DAMEGE
+DAMEGE = ARG:1
+SIF ARG <= 0
+    RETURN
+
+;如果攻击者是勇者
+IF ARG:3>0
+    ENEMY_NOW_HP:(ARG:3) = MAX(0,ENEMY_NOW_HP:(ARG:3) - 2 * DAMEGE)
+;否则
+ELSE    
+    BASE:(ARG:2):NOW_HP = MAX(0,BASE:(ARG:2):NOW_HP - 2 * DAMEGE)
+ENDIF
+
+ENEMY_STATE:ARG:103 = MAX(0, ENEMY_STATE:ARG:103 - ENEMY_STATE:ARG:203)
+ENEMY_STATE:ARG:203 = ENEMY_STATE:ARG:203 + 1
+RETURN 0
+
+@DECREASE_SUCCUBUS_STATE_103, ARG, ARG:1, ARG:2, ARG:3
+#DIM DAMEGE
+DAMEGE = ARG:1
+
+SIF ARG < 0
+    RETURN
+
+;如果攻击者是勇者
+IF ARG:3>0
+    ENEMY_NOW_HP:(ARG:3) = MAX(0,ENEMY_NOW_HP:(ARG:3) - 2 * DAMEGE)
+;否则
+ELSE    
+    BASE:(ARG:2):NOW_HP = MAX(0,BASE:(ARG:2):NOW_HP - 2 * DAMEGE)
+ENDIF
+
+CFLAG:ARG:103 = MAX(0, CFLAG:ARG:103 - CFLAG:ARG:203)
+CFLAG:ARG:203 = CFLAG:ARG:203 + 1
+RETURN 0

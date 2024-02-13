@@ -1,0 +1,84 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;毒素为双方都有的状态属性。每次行动时受到毒素数值的真实伤害并且使毒素状态减少一半
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_57, ARG
+SIF ARG <= 0
+    RETURN
+LOCAL = ENEMY_STATE:ARG:57
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_57, ARG
+SIF ARG<0
+    RETURN 
+LOCAL = CFLAG:ARG:57
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_57, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+ENEMY_STATE:ARG:57 += ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_57, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+CFLAG:ARG:57 += ARG:1
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;ARG为目标的编号 
+;每次行动时受到毒素数值的真实伤害并且使毒素状态减少一半
+@DECREASE_ENEMY_STATE_57, ARG
+#DIMS ENEMY_NAME
+#DIM ENEMY_RACE
+CALL RESET_TEXT_RETURN
+ENEMY_RACE = ENEMY:(ARG:0)
+TRYCALLFORM ENEMY_NAME_{ENEMY_RACE}
+IF TEXT_RETURN:0 !=""
+    ENEMY_NAME = %TEXT_RETURN:0%
+ENDIF
+SIF ARG <= 0
+    RETURN
+ENEMY_NOW_HP:ARG -= ENEMY_STATE:ARG:57
+
+IF ENEMY_NOW_HP:ARG<= 0
+    LOCALS = %ENEMY_NAME%は毒で倒れた
+    CALL ADD_BATTLE_LOG,LOCALS
+ENDIF
+ENEMY_STATE:ARG:57 -= MAX(1,ENEMY_STATE:ARG:57/2)
+ENEMY_STATE:ARG:57 = MAX(0,ENEMY_STATE:ARG:57)
+
+RETURN 
+
+@DECREASE_SUCCUBUS_STATE_57, ARG
+#DIMS SUCCUBUS_NAME
+SIF ARG < 0
+    RETURN
+CALL CALL_SUCCUBUS_NAME, ARG, 0
+SUCCUBUS_NAME = %TEXT_RETURN:0%
+BASE:ARG:NOW_HP -= CFLAG:ARG:57
+
+IF BASE:ARG:NOW_HP<= 0
+    LOCALS = %SUCCUBUS_NAME%は毒で倒れた
+    CALL ADD_BATTLE_LOG,LOCALS
+ENDIF
+CFLAG:ARG:57 -= MAX(1,CFLAG:ARG:57/2)
+CFLAG:ARG:57 = MAX(0,CFLAG:ARG:57)
+
+RETURN 
+

@@ -1,0 +1,259 @@
+﻿
+;-------------------------------------------------
+;输出心性记号
+;ハートマークの出力…口上テキストには組み込みにくいが、はっきりとしたハートマーク
+;-------------------------------------------------
+;Lucida Sans Unicode は大きめだが、下の文章をかなり消してしまうんですよねぇ
+@HEARTMARK
+GETFONT
+CHKFONT "Times New Roman"
+SIF RESULT
+	SETFONT "Times New Roman"
+PRINTFORM %UNICODE(0x2665)%
+SETFONT RESULTS
+
+;白抜きのハート
+@WHITE_HEARTMARK
+GETFONT
+CHKFONT "Times New Roman"
+SIF RESULT
+	SETFONT "Times New Roman"
+PRINTFORM %UNICODE(0x2661)%
+SETFONT RESULTS
+
+;大きめのハートマーク
+@BIG_HEARTMARK
+GETFONT
+CHKFONT "Times New Roman"
+SIF RESULT
+	SETFONT "Times New Roman"
+PRINTFORM %UNICODE(0x2764)%
+SETFONT RESULTS
+;-------------------------------------------------
+;PRINT_COLORTEXTのウェイトあり版
+;-------------------------------------------------
+@PRINTW_COLORTEXT, ARGS, ARG
+SETCOLOR ARG
+PRINTFORMW %ARGS%
+RESETCOLOR
+
+;ARGに応じた適当な値を返す
+@NORM(ARG, ARG:1)
+#FUNCTION
+
+SIF ARG:1 <= 0 && TARGET > 0
+	ARG:1 = TARGET
+SIF ARG <= 0
+	ARG = 2
+
+;ARG:1の識別番号を2乗させるので上限を設ける
+LOCAL = (POWER((BASE:(ARG:1):識別番号 + ARG)%10000000, 2) / 100) % 1000000000000
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;BARの色付き等一括版
+;ぱ。さん作のぱにめーしょんを参考にさせていただきました
+;ARGSにどのゲージかを指示
+;ARGにバーにする変数、ARG:1に最大値、ARG:2に文字列としての長さ が入る
+;-------------------------------------------------
+@PRINT_BAR, ARGS, ARG, ARG:1, ARG:2
+#DIM LCOUNT
+;バーの要素の色
+#DIM BAR_COLOR
+;バーの背景(右側の余白部分といった方が良いかもしれない)の色
+#DIM BG_COLOR
+;バーの要素
+#DIMS BAR_CHARA
+;バーに挿入する文字
+#DIMS INS_CHARA
+
+SIF ARG < 0
+	ARG = 0
+SIF ARG:1 < 0
+	ARG:1 = 0
+
+PRINTPLAINFORM [
+
+GETFONT
+CHKFONT "ＭＳ 哥特"
+SIF RESULT
+	SETFONT "ＭＳ 哥特"
+
+VARSET BAR_COLOR
+
+;色と記号の設定
+SELECTCASE ARGS
+CASE "ＰＡＬＡＭ絶頂"
+	BAR_COLOR = DEF_COLOR("ショッキング粉紅")
+CASE "ＰＡＬＡＭ"
+	BAR_COLOR = ((DEF_COLOR("白")/65536)/10*(10-MIN(10, GET_PALAMLV(ARG))))*65536
+	BAR_COLOR += (((DEF_COLOR("白")/256)%256)/10*(10-MIN(10, GET_PALAMLV(ARG))))*256
+	BAR_COLOR += ((DEF_COLOR("白")%256)/10*(10-MIN(10, GET_PALAMLV(ARG))))
+	BAR_COLOR += ((DEF_COLOR("粉紅")/65536)/10*MIN(10, GET_PALAMLV(ARG)))*65536
+	BAR_COLOR += (((DEF_COLOR("粉紅")/256)%256)/10*MIN(10, GET_PALAMLV(ARG)))*256
+	BAR_COLOR += ((DEF_COLOR("粉紅")%256)/10*MIN(10, GET_PALAMLV(ARG)))
+CASE "黄色"
+	BAR_COLOR = DEF_COLOR("黄色")
+CASE "白色"
+	BAR_COLOR = DEF_COLOR("白")
+CASE "爱心粉红"
+	BAR_COLOR = DEF_COLOR("爱心粉红")
+CASE "粉红"
+	BAR_COLOR = DEF_COLOR("粉紅")
+CASE "魂ゲージ"
+	SELECTCASE ARG
+	CASE IS >= 101
+		BAR_COLOR = DEF_COLOR("緑")
+	CASE 1 TO 100
+		BAR_COLOR = DEF_COLOR("青")
+	CASEELSE
+		BAR_COLOR = DEF_COLOR("灰色")
+	ENDSELECT
+CASE "減少ゲージ"
+	SELECTCASE ARG * 100 / ARG:1
+	CASE IS >= 75
+		BAR_COLOR = DEF_COLOR("緑")
+	CASE IS >= 50
+		BAR_COLOR = DEF_COLOR("青")
+	CASE IS >= 25
+		BAR_COLOR = DEF_COLOR("黄色")
+	CASE IS >= 1
+		BAR_COLOR = DEF_COLOR("紅")
+	CASEELSE
+		BAR_COLOR = DEF_COLOR("灰色")
+	ENDSELECT
+CASE "溜めゲージ"
+	SELECTCASE ARG * 100 / ARG:1
+	CASE IS >= 90
+		BAR_COLOR = DEF_COLOR("粉紅")
+	CASE IS >= 75
+		BAR_COLOR = DEF_COLOR("黄色")
+	CASEELSE
+		BAR_COLOR = DEF_COLOR("青")
+	ENDSELECT
+CASE "欲求ゲージ"
+	SELECTCASE ARG * 100 / ARG:1
+	CASE IS >= 90
+		BAR_COLOR = DEF_COLOR("ショッキング粉紅")
+	CASE IS >= 75
+		BAR_COLOR = DEF_COLOR("粉紅")
+	CASE IS >= 50
+		BAR_COLOR = DEF_COLOR("黄色")
+	CASEELSE
+		BAR_COLOR = DEF_COLOR("青")
+	ENDSELECT
+CASE "属性"
+	SELECTCASE ARG * 100 / ARG:1
+	CASE IS >= 90
+		BAR_COLOR = DEF_COLOR("赤")
+	CASE IS >= 75
+		BAR_COLOR = DEF_COLOR("粉红")
+	CASE IS >= 50
+		BAR_COLOR = DEF_COLOR("黄色")
+	CASE IS >= 25
+		BAR_COLOR = DEF_COLOR("绿")
+	CASEELSE
+		BAR_COLOR = DEF_COLOR("青")
+	ENDSELECT
+ENDSELECT
+
+;バーの色を決定
+SETCOLOR BAR_COLOR
+
+;バーの背景色
+BG_COLOR = (MAX(30, (BAR_COLOR/65536)/5)*65536 + MAX(30, ((BAR_COLOR/256)%256)/5)*256 + MAX(30, (BAR_COLOR%256)/5) )
+
+;基本は長方形のブロック□
+BAR_CHARA = %UNICODE(0x2587)%
+
+;PALAM形式のバーの最大値の算出
+SELECTCASE ARGS
+CASE "ＰＡＬＡＭ", "ＰＡＬＡＭ絶頂"
+	IF GET_PALAMLV(ARG) >= 16
+		ARG:1 = PALAM_LV(16)
+	ELSE
+		ARG:1 = PALAM_LV(GET_PALAMLV(ARG) + 1) - PALAM_LV(GET_PALAMLV(ARG) )
+		ARG -= PALAM_LV(GET_PALAMLV(ARG) )
+	ENDIF
+ENDSELECT
+
+SELECTCASE ARG
+;値が０以下
+CASE IS <= 0
+	;バーの色を背景色に変更
+	SETCOLOR BG_COLOR
+	PRINTPLAINFORM %BAR_CHARA * ARG:2%
+;値が最大値以上
+CASE IS >= ARG:1
+	;挿入する文字列があるか？MAXとか
+	VARSET INS_CHARA
+	SELECTCASE ARGS
+	CASE "黄色ゲージ", "白色ゲージ", "ハート粉紅ゲージ", "桃色ゲージ", "ＰＡＬＡＭ"
+		SIF ARG:2 >= 3
+			INS_CHARA = MAX
+	ENDSELECT
+	FOR LCOUNT, 0, ARG:2
+		IF INS_CHARA != "" && LCOUNT == ARG:2/2 - STRLENS(INS_CHARA)/2
+			SETFONT RESULTS
+
+			PRINTPLAINFORM %INS_CHARA%
+
+			CHKFONT "ＭＳ 哥特"
+			SIF RESULT
+				SETFONT "ＭＳ 哥特"
+
+			LCOUNT += STRLENS(INS_CHARA) - 1
+		ELSE
+			PRINTPLAINFORM %BAR_CHARA%
+		ENDIF
+	NEXT
+CASEELSE
+	FOR LCOUNT, 0, ARG:2
+		SELECTCASE LCOUNT
+		CASE (ARG*ARG:2 + ARG:1 - 1) / ARG:1
+			;バーの色を背景色に変更
+			SETCOLOR BG_COLOR
+		ENDSELECT
+		PRINTPLAINFORM %BAR_CHARA%
+	NEXT
+ENDSELECT
+RESETCOLOR
+
+SETFONT RESULTS
+
+PRINTPLAINFORM ]
+
+
+;-------------------------------------------------
+;ダミーカラーの設定
+;SETCOLOR SETCOLOR_DUMMY()　と使う
+;元の文字と微妙に違う色の文字にすることでGPI+特有の文字のズレを解消する（ただし工夫や力技必須）
+;()の中に値1～127を入れるとさらに微妙に別の色として扱えるが、10程度を超えると目に見えて違う色になってくる
+;-------------------------------------------------
+@SETCOLOR_DUMMY(ARG)
+#FUNCTION
+;RESULTの保持
+LOCAL = RESULT
+;現在のカラーの保持
+GETCOLOR
+LOCAL:1 = RESULT
+RESETCOLOR
+
+;デフォルトカラーの取得
+GETCOLOR
+IF ARG < 0 || ARG > 127
+	LOCAL:2 = RESULT
+ELSEIF RESULT%256 >= 255 - ARG
+	LOCAL:2 = RESULT-(1+ARG)
+ELSE
+	LOCAL:2 = RESULT+(1+ARG)
+ENDIF
+
+;カラーの復元
+SETCOLOR LOCAL:1
+;RESULTの復元
+RESULT = LOCAL
+
+RETURNF LOCAL:2
+

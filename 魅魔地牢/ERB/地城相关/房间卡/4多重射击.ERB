@@ -1,0 +1,136 @@
+﻿;-------------------------------------------------
+;多重射击
+;编号4
+;-------------------------------------------------
+
+;房间类型
+;0为罠，1为戦い部屋，2为后勤，3为监牢，4为祝福，5为腐化祝福，9为待建地块
+@ROOM_STYLE_4
+RETURN 0
+
+;房间星级
+@ROOM_RANK_4
+RETURN 3
+
+;返回房间名字，房间名字必须小于等于4个字
+@ROOM_NAME_4
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = 矢の雨
+RETURN
+
+;房间维持费
+;一般的房间维持费用为（建筑星级-2）/2（向下取整）
+@ROOM_COST_4
+LOCAL = 0
+RETURN LOCAL
+
+;房间介绍
+;返回使用的行数
+;ARG为房间的レベル
+@ROOM_INTRO_4,ARG
+VARSET TEXT_RETURN
+;开头的引用与引用者
+TEXT_RETURN:0 = 「一、二、三、同時攻撃！」
+TEXT_RETURN:1 = モンスター射手隊長
+
+TEXT_RETURN:2 = ▶これらの弓矢手は、巧妙に配置された陷阱の周りに配置され、敵が接近すると同時に、数え切れないほどの矢が一斉に放たれます。
+TEXT_RETURN:3 = ▶その矢の雨は、まるで暴風雨のように敵陣に降り注ぎ、敵にとってはまさに避けがたい破壊の嵐となります。
+TEXT_RETURN:4 = ▶弓矢の数は枚挙にいとまがなく、連続して放たれるため、攻撃者はその強大な火力に対処するのが極めて困難です。
+TEXT_RETURN:5 = ▶この戦略的な配置により、防御側は内部の脅威に対して効果的に立ち向かい、強力な防衛ラインを築き上げています。
+TEXT_RETURN:6 = ▶完璧に身にまとわれていない鎧を身に着けている敵に対しては、致命的な打撃が与えられます。
+RETURN 7
+
+;房间效果介绍
+;返回使用的行数
+;ARG为房间的レベル 房间的效果实时计算
+@ROOM_SKILL_INTRO_4, ARG
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = ▶三回の1~{20*ARG}(20*レベル)物理ダメージを与える。
+RETURN 1
+
+;是否可以通过购买或者奖励卡片获得
+@ROOM_GET_FROM_4
+RETURN 0
+
+;是否地宫中只能存在一个
+@ROOM_ONLY_4
+RETURN 0
+
+;---------------------------------------
+;房间效果发动 ARG:0为目标编号，根据情况不同可能为モンスター的编号或者目标勇者的编号
+;战斗记录在发动的过程中进行记录
+;ARG:1为发动状态 -1为モンスター退出房间时对モンスター产生效果，0为モンスター部署进房间时对房间中的モンスター产生效果
+; 1为当勇者进场或者经过时产生效果 2战斗开始前对全地宫被动效果 3为房间联动 4为赋予特殊状态时发动的全地宫效果 5为目标被消灭时发动的效果 6目标被消灭时对全地宫发动的效果 7结算界面发动的效果
+;8设施安装时对全体モンスター发动的效果 9设施撤去时对全体モンスター发动的效果 10为每次モンスター受到攻击时触发的效果 11为每次目标受到攻击时触发的效果
+;ARG:2为赋予的特殊状态种类
+;ARG:3为房间的レベル
+;ARG:4, ARG:5 为房间的坐标位置
+@ROOM_ACT_4,ARG:0, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5
+#DIM LCOUNT 
+#DIM RAND_RESULT
+
+SELECTCASE ARG:1
+    CASE 1
+        RAND_RESULT = RAND:(20*(ARG:3)) + 1
+        CALL ROOM_ATTACK,ARG:0,RAND_RESULT,0
+        RAND_RESULT = RAND:(20*(ARG:3)) + 1
+        CALL ROOM_ATTACK,ARG:0,RAND_RESULT,0
+        RAND_RESULT = RAND:(20*(ARG:3)) + 1
+        CALL ROOM_ATTACK,ARG:0,RAND_RESULT,0
+        ;LOCALS = 
+        ;CALL ADD_BATTLE_LOG,LOCALS
+ENDSELECT
+RETURN 
+
+;-------------------------------
+;房间所需要的标签和要求
+;ARG 为0时只返回标签 1时返回详细要求
+;一个房间最多需求两个标签
+;返回使用的行数
+@ROOM_LABEL_CHECK_4, ARG
+VARSET TEXT_RETURN
+
+TEXT_RETURN:0 = 无
+RETURN 1
+
+
+;-------------------------------
+;返还捕获力
+;捕获力上限为20 但是理论上可以用后勤设施和联动效果超过20
+;ARG与ARG:1为房间的X Y 位置
+@ROOM_CATCH_POWER_4, ARG, ARG:1
+#DIM CATCH_POWER
+
+CATCH_POWER = 0
+
+RETURN CATCH_POWER
+
+
+;-------------------------------
+;返回房间容纳的勇者数上限
+@ROOM_CATCH_NUM_4
+RETURN 0
+
+;------------------------------
+;融合方式
+;最多以三种房间为融合素材进行融合
+@ROOM_FUSION_FUNCTION_4
+#DIM MATERIAL_NUM
+#DIM MATERIAL,3
+#DIM COUNTER
+
+;作为素材的房间数量，当数量为0的时候表示不可以通过房间融合获得
+MATERIAL_NUM = 2
+
+;有多少个材料复制填写多少次 MATERIAL:编号 = 素材房间的种类编号
+MATERIAL:0 = 3
+MATERIAL:1 = 3
+
+RETURN MATERIAL_NUM,MATERIAL:0,MATERIAL:1,MATERIAL:2
+
+
+@ROOM_BAG_CHECK_4
+IF FLAG:500>0
+    RETURN 1
+ENDIF
+RETURN 0

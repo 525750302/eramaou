@@ -1,0 +1,45 @@
+﻿;-------------------------------------------------
+;录像带
+;编号2 レベル0 
+;所有设施立即获得一水晶的改进
+;不限获得次数
+;-------------------------------------------------
+;返回是否有该编号的宝物
+@TREASURE_2
+RETURN 1
+
+@TREASURE_NAME_2
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = ビデオ
+RETURN 
+
+;检查是否得到
+@TREASURE_GET_2
+RETURN 0
+
+@TREASURE_STAR_2
+RETURN 0
+
+;返回宝物的文本
+@TREASURE_TEXT_2
+VARSET TEXT_RETURN
+;宝物类的没有引用文本
+;宝物类的第一行必须是非常简短的说明，不能多于九个字
+TEXT_RETURN:0 = 全体レベルアップ
+TEXT_RETURN:1 = すべてのモンスター一回レベルアップ
+TEXT_RETURN:2 = ▶。。。
+
+;返回文本的行数
+RETURN 3
+
+
+;执行获得宝物之后的相关内容
+;需要按照情况进行发挥
+@TREASURE_ACT_2
+#DIM COUNT1
+FOR COUNT1,0,CHARANUM
+    CALL SUCCUBUS_LV_UP,COUNT1
+    BASE:COUNT1:精液 = 0
+NEXT
+
+RETURN

@@ -1,0 +1,707 @@
+﻿;-------------------------------------------------
+;地城相关
+;ARG表示打印模式，0为主界面显示地图，1为派遣モンスター显示地图，2为战斗显示地图 3为
+;-------------------------------------------------
+;打印地城地图
+@PRINT_DUNGEON, ARG
+#DIM COUNT1
+#DIM COUNTX
+#DIM COUNTY
+#DIM BUTTON_VALUE
+#DIM ROOM_STYLE
+#DIM MEMO_LINECOUNT
+MEMO_LINECOUNT = LINECOUNT
+
+ALIGNMENT LEFT
+IF ARG == 2
+    CALL DRAWLINES_DIY,"§戦闘記録§",200,"-"
+    IF FLAG_SHOW_BALLTE_LOG == 1
+        CALL SHOW_BATTLE_LOG,5
+    ENDIF
+
+    PRINTL
+    CALL SHOW_SUCCUBUS_STATES
+ENDIF
+ALIGNMENT CENTER
+
+;一个房间格 宽为12高为5行
+;魔王房间为特殊房间，宽为18，高为8行，可以放置除魔王外的两个モンスター
+;戦い部屋中最多容纳3名勇者，最多显示8名勇者
+;魔王宫殿可以容纳所有进入的勇者，最多显示12名勇者
+;普通勇者用红色圆点表示。命定勇者用蓝色圆点表示。特殊（暂定）敌人用黄色圆点表示
+;房间名称与モンスター名称做成按钮 返回值分别为8XY与9XY
+;魔王宫殿中的两个随行モンスター需要特殊处理 返回值为800与900
+;房间模板
+;    ┃┃            ┃┃        
+;    ┃┃     ┏------  ------┓ 
+;┏---  ---┓ ┃   魔王宫殿   ┃ 
+;┃房间名称┃ ┃     魔王     ┃ 
+;= モンスター名称 ==    随行モンスター    =
+;= 勇者圆点 ==    随行モンスター    =
+;┃勇者圆点┃ ┃   勇者圆点   ┃ 
+;┗---  ---┛ ┃   勇者圆点   ┃ 
+;    ┃┃     ┗------  ------┛ 
+;    ┃┃            ┃┃        
+
+FOR COUNTY,DUNGEON_START_Y,DUNGEON_END_Y+1
+    IF COUNTY == BOSS_LOCATION_Y
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT ┏------  ------┓
+            ELSE
+                IF COUNTY == DUNGEON_START_Y
+                    PRINT             
+                ELSE
+                    IF DUNGEON_CONNECT:COUNTX:COUNTY:0 == 1
+                        PRINT     ┃┃    
+                    ELSE
+                        PRINT             
+                    ENDIF
+                ENDIF
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            BUTTON_VALUE = COUNTX*10 + COUNTY*1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINTFORM ┃
+                PRINTBUTTON "   魔王宮殿   ", (800 + BUTTON_VALUE)
+                PRINTFORM ┃
+            ELSE
+                PRINT ┏---  ---┓
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            BUTTON_VALUE = COUNTX*10 + COUNTY*1
+            IF COUNTX == BOSS_LOCATION_X
+                TRYCALLFORM SUCCUBUS_NAME_{BASE:MASTER:种族}
+                PRINTFORM ┃
+                PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,14), 700
+                PRINTFORM ┃
+            ELSE
+                TRYCALLFORM ROOM_NAME_{DUNGEON:COUNTX:COUNTY}
+                PRINTFORM ┃
+                PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,8), (800 + BUTTON_VALUE)
+                PRINTFORM ┃
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            BUTTON_VALUE = COUNTX*10 + COUNTY*1
+            IF COUNTX == BOSS_LOCATION_X
+                CALL CALL_SUCCUBUS_NAME,BOSSROOM_SUCCUBUS:1,1
+                CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                IF ARG == 0
+                    PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,16), 800
+                ELSEIF ARG == 1
+                    SIF TEXT_RETURN:0 == ""
+                        TEXT_RETURN:0 = [800]--
+                    PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,16), 800
+                ELSEIF ARG == 2
+                    IF ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:1 > 0
+                        IF BOSSROOM_SUCCUBUS:1 > 0
+                            IF BASE:(BOSSROOM_SUCCUBUS:1):NOW_HP <= 0
+                                SETCOLOR 0x707070
+                            ELSEIF BASE:(BOSSROOM_SUCCUBUS:1):NOW_HP <= BASE:(BOSSROOM_SUCCUBUS:1):HP/2
+                                SETCOLOR 0xEFD540
+                            ENDIF 
+                        ENDIF
+                    ENDIF
+                    IF BOSSROOM_SUCCUBUS:1 > 0
+                        PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,16), 800
+                    ELSE
+                        PRINTFORM %TEXT_CJ(TEXT_RETURN:0,16)% 
+                    ENDIF
+                    RESETCOLOR 
+                ENDIF
+                CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+            ELSE
+                CALL CALL_SUCCUBUS_NAME,SUCCUBUS_LOCATION:COUNTX:COUNTY,1
+                TRYCALLFORM ROOM_STYLE_{DUNGEON:COUNTX:COUNTY}
+                ROOM_STYLE = RESULT
+
+                IF COUNTX == DUNGEON_START_X
+                    IF COUNTX == 1
+                        CALL PRINT_STR,"_黄色_→_ "
+                    ELSE
+                        CALL PRINT_STR,"   "
+                    ENDIF
+                    CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE, ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                ELSEIF COUNTX == DUNGEON_END_X
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE, ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                    IF COUNTX == 7
+                        CALL PRINT_STR," _黄色_←_"
+                    ELSE
+                        CALL PRINT_STR,"   "
+                    ENDIF
+                ELSE
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE, ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                ENDIF
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                CALL CALL_SUCCUBUS_NAME,BOSSROOM_SUCCUBUS:2,1
+                CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                IF ARG == 0
+                    PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,16), 900
+                ELSEIF ARG == 1
+                    SIF TEXT_RETURN:0 == ""
+                        TEXT_RETURN:0 = [900]--
+                    PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,16), 900
+                ELSEIF ARG == 2
+                    IF ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:2 > 0
+                        IF BOSSROOM_SUCCUBUS:2 > 0
+                            IF BASE:(BOSSROOM_SUCCUBUS:2):NOW_HP <= 0
+                                SETCOLOR 0x707070
+                            ELSEIF BASE:(BOSSROOM_SUCCUBUS:2):NOW_HP <= BASE:(BOSSROOM_SUCCUBUS:2):HP/2
+                                SETCOLOR 0xEFD540
+                            ENDIF 
+                        ENDIF
+                    ENDIF
+                    IF BOSSROOM_SUCCUBUS:2 > 0
+                        PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,16), 900
+                    ELSE
+                        PRINTFORM %TEXT_CJ(TEXT_RETURN:0,16)% 
+                    ENDIF
+                    RESETCOLOR 
+                ENDIF
+                CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+            ELSE
+                IF COUNTX == DUNGEON_START_X
+                    IF COUNTX == 1
+                        CALL PRINT_STR,"_黄色_→_ "
+                    ELSE
+                        CALL PRINT_STR,"   "
+                    ENDIF
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                ELSEIF COUNTX == DUNGEON_END_X
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                    IF COUNTX == 7
+                        CALL PRINT_STR," _黄色_←_"
+                    ELSE
+                        CALL PRINT_STR,"   "
+                    ENDIF
+                ELSE
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                ENDIF
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT ┃ 
+                CALL BOSSROOM_ENEMY_COUNT,COUNTX,COUNTY,0
+                PRINT  ┃
+            ELSE
+                PRINT ┃
+                CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                PRINT ┃
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT ┃ 
+                CALL BOSSROOM_ENEMY_COUNT,COUNTX,COUNTY,1
+                PRINT  ┃
+            ELSE
+                PRINT ┗---  ---┛
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT ┗------  ------┛
+            ELSE
+                IF DUNGEON_CONNECT:COUNTX:COUNTY:2 == 1
+                    PRINT     ┃┃    
+                ELSE
+                    PRINT             
+                ENDIF
+            ENDIF
+        NEXT
+        PRINTL
+
+        CALL PRINT_DUNGEON_VER
+    ;与BOSS房间不在同一行
+    ELSE
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT    ┏---  ---┓   
+            ELSE
+                PRINT ┏---  ---┓
+            ENDIF
+        NEXT
+        PRINTL
+        
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            BUTTON_VALUE = COUNTX*10 + COUNTY*1
+            IF COUNTX == BOSS_LOCATION_X
+                TRYCALLFORM ROOM_NAME_{DUNGEON:COUNTX:COUNTY}
+                PRINTFORM    ┃
+                PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,8), (800 + BUTTON_VALUE)
+                PRINTFORM ┃   
+            ELSE
+                TRYCALLFORM ROOM_NAME_{DUNGEON:COUNTX:COUNTY}
+                PRINTFORM ┃
+                PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,8), (800 + BUTTON_VALUE)
+                PRINTFORM ┃
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            BUTTON_VALUE = COUNTX*10 + COUNTY*1
+            TRYCALLFORM ROOM_STYLE_{DUNGEON:COUNTX:COUNTY}
+            ROOM_STYLE = RESULT
+            CALL CALL_SUCCUBUS_NAME,SUCCUBUS_LOCATION:COUNTX:COUNTY,1
+            IF COUNTX == BOSS_LOCATION_X
+                FOR LOCAL,0,4
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                NEXT
+                CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE ,ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                FOR LOCAL,0,4
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                NEXT
+            ELSE
+                IF COUNTX == DUNGEON_START_X
+                    PRINTFORM  
+                    CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE ,ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+
+                ELSEIF COUNTX == DUNGEON_END_X
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE ,ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                    PRINTFORM  
+                ELSE
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_DUNGEON_SUCCUBUS_NAME_10 ,ARG ,BUTTON_VALUE ,ROOM_STYLE, SUCCUBUS_LOCATION:COUNTX:COUNTY, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                ENDIF
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                FOR LOCAL,0,4
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                NEXT
+                PRINTFORM %BL(1)%
+                CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                PRINTFORM %BL(1)%
+                FOR LOCAL,0,4
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                NEXT
+            ELSE
+                IF COUNTX == DUNGEON_START_X
+                    PRINT   
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                    PRINTFORM %BL(1)%
+                    CALL PRINT_RIGHT_ROAD, COUNTX, COUNTY
+                ELSEIF COUNTX == DUNGEON_END_X
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                    PRINT   
+                ELSE
+                    CALL PRINT_LEFT_ROAD, COUNTX, COUNTY
+                    PRINTFORM %BL(1)%
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                    PRINTFORM %BL(1)%
+                    CALL ENEMY_COUNT,COUNTX,COUNTY,0
+                ENDIF
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT    ┃
+                CALL ENEMY_COUNT,COUNTX,COUNTY,1
+                PRINT ┃   
+            ELSE
+                PRINT ┃
+                CALL ENEMY_COUNT,COUNTX,COUNTY,1
+                PRINT ┃
+            ENDIF
+        NEXT
+        PRINTL
+
+        FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+            IF COUNTX == BOSS_LOCATION_X
+                PRINT    ┗---  ---┛   
+            ELSE
+                PRINT ┗---  ---┛
+            ENDIF
+        NEXT
+        PRINTL
+        IF COUNTY == DUNGEON_END_Y
+            CALL PRINT_STR,"_黄色_        ↑↑        "
+            PRINTL
+        ELSE
+            CALL PRINT_DUNGEON_VER
+        ENDIF
+    ENDIF
+NEXT
+
+;固定打印频率
+IF ARG == 2
+    PRINTL
+    PRINTFORML [999]一時停止
+    TINPUT 200,100
+    SELECTCASE RESULT
+        CASE 999
+            PRINTL 任意のキーを押すと続行する
+            WAIT
+        CASE 200
+            FLAG_SHOW_BALLTE_LOG = (FLAG_SHOW_BALLTE_LOG + 1)%2
+        CASE 700
+            FLAG:聚焦对象 = BOSSROOM_SUCCUBUS:0
+        CASE 800
+        	FLAG:聚焦对象 = BOSSROOM_SUCCUBUS:1
+        CASE 900
+        	FLAG:聚焦对象 = BOSSROOM_SUCCUBUS:2
+        CASE 901 TO 999
+            LOCAL = (RESULT - 900)/10
+            LOCAL:1 = RESULT - 900 - LOCAL * 10
+            FLAG:聚焦对象 = SUCCUBUS_LOCATION:LOCAL:(LOCAL:1)
+    ENDSELECT
+    CLEARLINE LINECOUNT - MEMO_LINECOUNT
+    RETURN
+ELSEIF ARG == 1
+    ALIGNMENT LEFT
+    PRINTL
+    PRINTFORML [100]戻る    [101]派遣したモンスターを回収
+
+ENDIF
+
+ALIGNMENT LEFT
+            
+;打印竖向通路 ┃┃
+@PRINT_DUNGEON_VER
+#DIM COUNTX
+FOR COUNTX,DUNGEON_START_X,DUNGEON_END_X+1
+    IF COUNTX == BOSS_LOCATION_X
+        PRINT        ┃┃       
+    ELSE
+        PRINT     ┃┃    
+    ENDIF
+NEXT
+PRINTL
+
+;打印勇者圆点，用红色表示普通勇者，用蓝色表示命定勇者，用黄色表示特殊敌人（暂定）
+;种类编号100以下为普通勇者，101-200为对应的命定勇者
+;ARG为X轴位置
+;ARG:1为Y轴位置
+;ARG:2为0时表示1-4号勇者，1时表示5-8号勇者
+@ENEMY_COUNT,ARG,ARG:1,ARG:2
+#DIM LCOUNT 
+LCOUNT = ENEMY_DUNGEON_LOCATION:ARG:(ARG:1):0
+
+IF ARG:2 == 0
+    FOR LOCAL,1,5
+        LOCAL:1 = ENEMY_DUNGEON_LOCATION:ARG:(ARG:1):LOCAL
+        IF ENEMY:(LOCAL:1) > 0
+            TRYCALLFORM ENEMY_DUNGEON_NAME_{ENEMY:(LOCAL:1)}
+            IF ENEMY:(LOCAL:1)<=200 && ENEMY:(LOCAL:1)>100
+                CALL PRINT_STR,@"_蓝色_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_CATCH:(LOCAL:1) == 1
+                CALL PRINT_STR,@"_爱心粉红_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_FIGHTING:(LOCAL:1) != -1
+                CALL PRINT_STR,@"_黄色_%TEXT_RETURN:0%"
+            ELSE
+                CALL PRINT_STR,@"%TEXT_RETURN:0%"
+            ENDIF
+        ELSE 
+            CALL PRINT_STR,@"  "
+        ENDIF
+    NEXT
+ELSE
+    FOR LOCAL,5,9
+        LOCAL:1 = ENEMY_DUNGEON_LOCATION:ARG:(ARG:1):LOCAL
+        IF ENEMY:(LOCAL:1) > 0
+            TRYCALLFORM ENEMY_DUNGEON_NAME_{ENEMY:(LOCAL:1)}
+            IF ENEMY:(LOCAL:1)<=200 && ENEMY:(LOCAL:1)>100
+                CALL PRINT_STR,@"_蓝色_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_CATCH:(LOCAL:1) == 1
+                CALL PRINT_STR,@"_爱心粉红_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_FIGHTING:(LOCAL:1) != -1
+                CALL PRINT_STR,@"_黄色_%TEXT_RETURN:0%"
+            ELSE
+                CALL PRINT_STR,@"%TEXT_RETURN:0%"
+            ENDIF
+        ELSE 
+            CALL PRINT_STR,@"  "
+        ENDIF
+    NEXT
+ENDIF
+
+
+RETURN
+
+;打印魔王宫殿的勇者图标
+@BOSSROOM_ENEMY_COUNT,ARG,ARG:1,ARG:2
+#DIM LCOUNT 
+LCOUNT = ENEMY_DUNGEON_LOCATION:ARG:(ARG:1):0
+
+IF ARG:2 == 0
+    FOR LOCAL,1,7
+        LOCAL:1 = ENEMY_DUNGEON_LOCATION:ARG:(ARG:1):LOCAL
+        IF ENEMY:(LOCAL:1) > 0
+            TRYCALLFORM ENEMY_DUNGEON_NAME_{ENEMY:(LOCAL:1)}
+            IF ENEMY:(LOCAL:1)<=200 && ENEMY:(LOCAL:1)>100
+                CALL PRINT_STR,@"_蓝色_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_CATCH:(LOCAL:1) == 1
+                CALL PRINT_STR,@"_爱心粉红_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_FIGHTING:(LOCAL:1) != -1
+                CALL PRINT_STR,@"_黄色_%TEXT_RETURN:0%"
+            ELSE
+                CALL PRINT_STR,@"%TEXT_RETURN:0%"
+            ENDIF
+        ELSE 
+            CALL PRINT_STR,@"  "
+        ENDIF
+    NEXT
+ELSE
+    FOR LOCAL,7,13
+        LOCAL:1 = ENEMY_DUNGEON_LOCATION:ARG:(ARG:1):LOCAL
+        IF ENEMY:(LOCAL:1) > 0
+            TRYCALLFORM ENEMY_DUNGEON_NAME_{ENEMY:(LOCAL:1)}
+            IF ENEMY:(LOCAL:1)<=200 && ENEMY:(LOCAL:1)>100
+                CALL PRINT_STR,@"_蓝色_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_CATCH:(LOCAL:1) == 1
+                CALL PRINT_STR,@"_爱心粉红_%TEXT_RETURN:0%"
+            ELSEIF ENEMY_FIGHTING:(LOCAL:1) != -1
+                CALL PRINT_STR,@"_黄色_%TEXT_RETURN:0%"
+            ELSE
+                CALL PRINT_STR,@"%TEXT_RETURN:0%"
+            ENDIF
+        ELSE 
+            CALL PRINT_STR,@"  "
+        ENDIF
+    NEXT
+ENDIF
+
+RETURN
+
+;----------------------------------------------
+;根据打印模式的不同输出不同的モンスター名字按钮
+;ARG为打印模式 ARG:1为按钮的返回值 ARG:2为房间类型 ARG:3为モンスター编号 ARG:4, ARG:5为房间坐标XY
+@PRINT_DUNGEON_SUCCUBUS_NAME_10, ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5
+#DIM BUTTON_VALUE
+BUTTON_VALUE = ARG:1
+
+CALL CALL_SUCCUBUS_NAME,SUCCUBUS_LOCATION:(ARG:4):(ARG:5),1
+
+IF ARG == 0
+    PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,10), (900+BUTTON_VALUE)
+ELSEIF ARG == 1
+    IF ARG:2 == 1
+        IF TEXT_RETURN:0 == "" && DUNGEON:(ARG:4):(ARG:5) != 0
+            TEXT_RETURN:0 = [{900+BUTTON_VALUE}]--
+        ENDIF
+    ENDIF
+    PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,10), (900+BUTTON_VALUE)
+ELSEIF ARG == 2
+    IF ARG:2 == 1
+        IF DUNGEON_CONTAIN:(ARG:4):(ARG:5):1 > 0
+            IF ARG:3 > 0
+                IF BASE:(ARG:3):NOW_HP <= 0
+                    SETCOLOR DEF_COLOR("灰色")
+                ELSEIF BASE:(ARG:3):NOW_HP <= BASE:(ARG:3):HP/2
+                    SETCOLOR DEF_COLOR("黄色")
+                ENDIF 
+            ENDIF
+        ENDIF
+    ENDIF
+    IF TEXT_RETURN:0 != ""
+        PRINTBUTTON TEXT_CJ(TEXT_RETURN:0,10), (900+BUTTON_VALUE)
+    ELSE
+        PRINTFORM %TEXT_CJ(TEXT_RETURN:0,10)%
+    ENDIF
+    RESETCOLOR
+ENDIF
+
+@PRINT_RIGHT_ROAD,ARG,ARG:1
+IF (DUNGEON_CONNECT:ARG:(ARG:1):3 == 1) || (DUNGEON_CONNECT:(ARG+1):(ARG:1):2 == 1)
+    PRINTFORM =
+ELSE
+    PRINTFORM  
+ENDIF
+
+@PRINT_LEFT_ROAD,ARG,ARG:1
+IF (DUNGEON_CONNECT:ARG:(ARG:1):2 == 1) || (DUNGEON_CONNECT:(ARG-1):(ARG:1):3 == 1)
+    PRINTFORM =
+ELSE
+    PRINTFORM  
+ENDIF
+
+
+;------------------------------
+;房间的设置 单纯进行覆盖
+;ARG为房间的种类编号, ARG:1为房间的レベル
+@ROOM_SET, ARG, ARG:1
+#DIM CHOICE
+#DIM MEMO_LINECOUNT
+#DIM GET_EXP
+MEMO_LINECOUNT = LINECOUNT
+$INPUT_LOOP
+CALL PRINT_DUNGEON,0
+
+INPUT
+CHOICE = RESULT
+SELECTCASE CHOICE
+    ;从地图上直接点击モンスター和房间名字
+    CASE 700
+        CALL PRINT_CHARA, BOSSROOM_SUCCUBUS:0
+
+    CASE 800
+    	CALL PRINT_CHARA, BOSSROOM_SUCCUBUS:1
+
+    CASE 900
+    	CALL PRINT_CHARA, BOSSROOM_SUCCUBUS:2
+
+    CASE 901 TO 999
+    	LOCAL = (CHOICE - 900)/10
+    	LOCAL:1 = CHOICE - 900 - LOCAL * 10
+        IF SUCCUBUS_LOCATION:LOCAL:(LOCAL:1) == -1
+            CLEARLINE LINECOUNT - MEMO_LINECOUNT
+            GOTO INPUT_LOOP
+        ENDIF
+    	CALL PRINT_CHARA, SUCCUBUS_LOCATION:LOCAL:(LOCAL:1)
+
+    CASE 801 TO 899
+    	LOCAL = (CHOICE - 800)/10
+    	LOCAL:1 = CHOICE - 800 - LOCAL * 10
+    	PRINTFORM 選ばれた施設は
+        TRYCALLFORM ROOM_NAME_{DUNGEON:LOCAL:(LOCAL:1)}
+        PRINTFORML %TEXT_RETURN:0%, Lv.{DUNGEON_LEVEL:LOCAL:(LOCAL:1)}です。
+        IF DUNGEON:LOCAL:(LOCAL:1) != 1
+            CALL PRINT_BUTTON_17, "替える", 300, 1
+        ELSE
+            CALL PRINT_BUTTON_17, "替える", 300, 0
+        ENDIF
+        IF DUNGEON:LOCAL:(LOCAL:1) != 0
+            CALL PRINT_BUTTON_17, "強化", 400, 1
+        ELSE
+            CALL PRINT_BUTTON_17, "強化", 400, 0
+        ENDIF
+        CALL PRINT_BUTTON_17, "キャンセル", 500, 1
+        $INPUT_LOOP_2
+        INPUT
+        SELECTCASE RESULT
+            CASE 300
+                GET_EXP = 0
+                IF DUNGEON:LOCAL:(LOCAL:1) != 0
+                    CALL CAL_ROOM_JB, DUNGEON:LOCAL:(LOCAL:1), DUNGEON_LEVEL:LOCAL:(LOCAL:1)
+                    GET_EXP = RESULT
+                ENDIF
+                CALL ROOM_LV_UP, ARG, ARG:1, GET_EXP, LOCAL, (LOCAL:1)
+
+                CALL ROOM_LV_CHANGE, ARG,LOCAL,(LOCAL:1), RESULT
+                CALL DEL_SUCCUBUS_FROM_DUNGEON, SUCCUBUS_LOCATION:LOCAL:(LOCAL:1)
+                IF DUNGEON:LOCAL:(LOCAL:1) != 0
+                    CALL PRINT_STRW,@"新しい施設に替えた,注意：_黄色_元の施設に配置したモンスターが自動に回収した_"
+                ENDIF
+                DUNGEON:LOCAL:(LOCAL:1) = ARG
+                RETURN 1
+            CASE 400
+                GET_EXP = 0
+                IF DUNGEON:LOCAL:(LOCAL:1) != 0
+                    CALL CAL_ROOM_JB, ARG, ARG:1
+                    GET_EXP = RESULT
+                ENDIF
+                CALL ROOM_LV_UP, DUNGEON:LOCAL:(LOCAL:1), DUNGEON_LEVEL:LOCAL:(LOCAL:1), GET_EXP, LOCAL, (LOCAL:1)
+                CALL ROOM_LV_CHANGE, ARG,LOCAL,(LOCAL:1),RESULT
+                CALL PRINT_STRW,@"強化完成"
+                RETURN 1
+            CASE 500
+                CLEARLINE LINECOUNT - MEMO_LINECOUNT
+                GOTO INPUT_LOOP
+            CASEELSE 
+                GOTO INPUT_LOOP_2
+        ENDSELECT
+ENDSELECT
+
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+GOTO INPUT_LOOP
+
+;---------------------------------------
+;显示战斗中的モンスター状态
+;---------------------------------------
+@SHOW_SUCCUBUS_STATES
+#DIM COUNT1
+#DIM TARGET_SUCCUBUS
+TARGET_SUCCUBUS = FLAG:聚焦对象
+CALL CALL_SUCCUBUS_NAME,TARGET_SUCCUBUS,1
+LOCALS = 
+LOCALS = %TEXT_RETURN:0%: {BASE:TARGET_SUCCUBUS:NOW_HP}/{BASE:TARGET_SUCCUBUS:HP}
+IF BASE:TARGET_SUCCUBUS:NOW_HP < BASE:TARGET_SUCCUBUS:HP / 5
+    SETCOLOR DEF_COLOR("红色")
+ELSEIF BASE:TARGET_SUCCUBUS:NOW_HP < BASE:TARGET_SUCCUBUS:HP / 2
+    SETCOLOR DEF_COLOR("黄色")
+ENDIF
+PRINTFORML %LOCALS%
+RESETCOLOR
+CALL SHOW_BREIF_SUCCUBUS_STATE, TARGET_SUCCUBUS
+
+;-------------------------------------
+;显示モンスター的各种特殊状态
+;-------------------------------------
+@SHOW_BREIF_SUCCUBUS_STATE,ARG
+#DIM COUNT1
+#DIM TARGET_SUCCUBUS
+TARGET_SUCCUBUS = ARG
+COUNT1 = 0
+FOR LOCAL,50,150
+    IF CFLAG:TARGET_SUCCUBUS:LOCAL > 0
+        LOCALS = %CFLAGNAME:LOCAL%:{CFLAG:TARGET_SUCCUBUS:LOCAL}
+        IF LOCAL < 100
+            IF CFLAG:TARGET_SUCCUBUS:LOCAL > 100
+                SETCOLOR DEF_COLOR("红")
+            ELSEIF CFLAG:TARGET_SUCCUBUS:LOCAL > 20
+                SETCOLOR DEF_COLOR("黄色")
+            ENDIF
+        ELSEIF LOCAL < 150
+            IF CFLAG:TARGET_SUCCUBUS:LOCAL > 100
+                SETCOLOR DEF_COLOR("緑")
+            ELSEIF CFLAG:TARGET_SUCCUBUS:LOCAL > 20
+                SETCOLOR DEF_COLOR("青")
+            ENDIF
+        ENDIF
+        PRINTFORM %TEXT_LJ(LOCALS,10)%
+        RESETCOLOR
+        COUNT1 += 1
+    ENDIF
+    IF COUNT1 >= 9
+        PRINTFORML
+    ENDIF
+NEXT
+PRINTL 

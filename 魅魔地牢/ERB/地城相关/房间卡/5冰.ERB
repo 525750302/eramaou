@@ -1,0 +1,141 @@
+﻿;-------------------------------------------------
+;冰
+;编号5
+;-------------------------------------------------
+
+;房间类型
+;0为罠，1为戦い部屋，2为后勤，3为监牢，4为祝福，5为腐化祝福，9为待建地块
+@ROOM_STYLE_5
+RETURN 0
+
+;房间星级
+@ROOM_RANK_5
+RETURN 1
+
+;返回房间名字，房间名字必须小于等于4个字
+@ROOM_NAME_5
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = 冰
+RETURN
+
+;房间维持费
+;一般的房间维持费用为（建筑星级-2）/2（向下取整）
+@ROOM_COST_5
+LOCAL = 0
+RETURN LOCAL
+
+;房间介绍
+;返回使用的行数
+;ARG为房间的レベル
+@ROOM_INTRO_5,ARG
+VARSET TEXT_RETURN
+;开头的引用与引用者
+TEXT_RETURN:0 = 「……ハクション！」
+TEXT_RETURN:1 = 風邪を引いたモンスター
+
+TEXT_RETURN:2 = ▶氷魔法を使用したトラップは、冷気を頻繁に漂わせる戦略的な仕掛けです。
+TEXT_RETURN:3 = ▶激しい寒風は一方では勇者を撃退し、同時に守護者のモンスターたちには風邪を引かせることがよくあります。
+TEXT_RETURN:4 = ▶現在、氷系トラップ周辺のモンスターたちに対する保温手段の追加についての検討が進行中です。
+TEXT_RETURN:5 = ▶たとえうっかり風邪を引いても、丈夫な体を持つモンスターたちは、わずかに火のそばで休息すれば戦闘力を迅速に回復できます。
+
+RETURN 6
+
+;房间效果介绍
+;返回使用的行数
+;ARG为房间的レベル 房间的效果实时计算
+@ROOM_SKILL_INTRO_5, ARG
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = ▶1~{15*ARG}(15*レベル)氷魔法ダメージを与える、そして{2*ARG}(*2レベル)の_红色_遅い_を付ける。
+RETURN 1
+
+;是否可以通过购买或者奖励卡片获得
+@ROOM_GET_FROM_5
+RETURN 1
+
+;是否地宫中只能存在一个
+@ROOM_ONLY_5
+RETURN 0
+
+;---------------------------------------
+;房间效果发动 ARG:0为目标编号，根据情况不同可能为モンスター的编号或者目标勇者的编号
+;战斗记录在发动的过程中进行记录
+;ARG:1为发动状态 -1为モンスター退出房间时对モンスター产生效果，0为モンスター部署进房间时对房间中的モンスター产生效果
+; 1为当勇者进场或者经过时产生效果 2战斗开始前对全地宫被动效果 3为房间联动 4为赋予特殊状态时发动的全地宫效果 5为目标被消灭时发动的效果 6目标被消灭时对全地宫发动的效果 7结算界面发动的效果
+;8设施安装时对全体モンスター发动的效果 9设施撤去时对全体モンスター发动的效果 10为每次モンスター受到攻击时触发的效果 11为每次目标受到攻击时触发的效果
+;ARG:2为赋予的特殊状态种类
+;ARG:3为房间的レベル
+;ARG:4, ARG:5 为房间的坐标位置
+@ROOM_ACT_5,ARG:0, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5
+#DIM LCOUNT 
+#DIM RAND_RESULT
+#DIMS ENEMY_NAME
+#DIM ENEMY_RACE
+IF ARG:1 == 1 || ARG:1 == 5 || ARG:1 == 6 || ARG:1 == 11
+    CALL RESET_TEXT_RETURN
+    ENEMY_RACE = ENEMY:(ARG:0)
+    TRYCALLFORM ENEMY_NAME_{ENEMY_RACE}
+    IF TEXT_RETURN:0 !=""
+        ENEMY_NAME = %TEXT_RETURN:0%
+    ENDIF
+ENDIF
+SELECTCASE ARG:1
+    CASE 1
+        RAND_RESULT = RAND:(15*(ARG:3)) + 1
+        CALL ROOM_ATTACK,ARG:0,RAND_RESULT,1
+        CALL ADD_ENEMY_STATE_50,ARG:0,2*(ARG:3)
+        LOCALS = 冰は%ENEMY_NAME%に{RAND_RESULT}氷魔法ダメージを与えた
+        CALL ADD_BATTLE_LOG,LOCALS
+ENDSELECT
+RETURN 
+
+;-------------------------------
+;房间所需要的标签和要求
+;ARG 为0时只返回标签 1时返回详细要求
+;一个房间最多需求两个标签
+;返回使用的行数
+@ROOM_LABEL_CHECK_5, ARG
+VARSET TEXT_RETURN
+
+TEXT_RETURN:0 = 无
+RETURN 1
+
+
+;-------------------------------
+;返还捕获力
+;捕获力上限为20 但是理论上可以用后勤设施和联动效果超过20
+;ARG与ARG:1为房间的X Y 位置
+@ROOM_CATCH_POWER_5, ARG, ARG:1
+#DIM CATCH_POWER
+
+CATCH_POWER = 0
+
+RETURN CATCH_POWER
+
+
+;-------------------------------
+;返回房间容纳的勇者数上限
+@ROOM_CATCH_NUM_5
+RETURN 0
+
+;------------------------------
+;融合方式
+;最多以三种房间为融合素材进行融合
+@ROOM_FUSION_FUNCTION_5
+#DIM MATERIAL_NUM
+#DIM MATERIAL,3
+#DIM COUNTER
+
+;作为素材的房间数量，当数量为0的时候表示不可以通过房间融合获得
+MATERIAL_NUM = 0
+
+;有多少个材料复制填写多少次 MATERIAL:编号 = 素材房间的种类编号
+MATERIAL:0 = 0
+
+RETURN MATERIAL_NUM,MATERIAL:0,MATERIAL:1,MATERIAL:2
+
+
+@ROOM_BAG_CHECK_5
+IF FLAG:500>0
+    RETURN 1
+ENDIF
+RETURN 0

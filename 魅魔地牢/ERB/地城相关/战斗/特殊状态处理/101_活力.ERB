@@ -1,0 +1,97 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;活力为双方都有的状态属性。行动开始时回复等同数值的生命值，每次回复最多消耗一半的活力，当回复量小于一半的活力时，消耗等同于回复量的活力。与火傷数值抵消。
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_101, ARG
+SIF ARG <= 0
+    RETURN
+LOCAL = ENEMY_STATE:ARG:101
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_101, ARG
+SIF ARG<0
+    RETURN 
+LOCAL = CFLAG:ARG:101
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_101, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+
+ENEMY_STATE:ARG:101 += ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_101, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+
+CFLAG:ARG:101 += ARG:1
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;行动开始时回复等同数值的生命值，每次回复最多消耗一半的活力，当回复量小于一半的活力时，消耗等同于回复量的活力。与火傷数值抵消。
+@DECREASE_ENEMY_STATE_101, ARG
+#DIM STATE_VALUE
+#DIM BURNED_VALUE
+#DIM HEAL_VALUE
+#DIM DECREASE_VALUE
+#DIM LOG_HP
+
+SIF ARG <= 0
+    RETURN
+
+HEAL_VALUE = 0
+STATE_VALUE = ENEMY_STATE:ARG:101
+HEAL_VALUE = STATE_VALUE
+CALL CHECK_ENEMY_STATE_54, ARG
+BURNED_VALUE = RESULT
+
+IF BURNED_VALUE > 0
+    HEAL_VALUE = MAX(0, HEAL_VALUE - BURNED_VALUE)
+ENDIF
+LOG_HP = ENEMY_NOW_HP:ARG
+ENEMY_NOW_HP:ARG = MIN(ENEMY_HP:ARG, ENEMY_NOW_HP:ARG + HEAL_VALUE)
+DECREASE_VALUE = ENEMY_NOW_HP:ARG - LOG_HP
+
+ENEMY_STATE:ARG:101 = MAX(0,ENEMY_STATE:ARG:101 - MIN(STATE_VALUE / 2, DECREASE_VALUE))
+
+
+@DECREASE_SUCCUBUS_STATE_101, ARG, ARG:1
+#DIM STATE_VALUE
+#DIM BURNED_VALUE
+#DIM HEAL_VALUE
+#DIM DECREASE_VALUE
+#DIM LOG_HP
+
+SIF ARG < 0
+    RETURN
+
+HEAL_VALUE = 0
+STATE_VALUE = CFLAG:ARG:101
+HEAL_VALUE = STATE_VALUE
+CALL CHECK_SUCCUBUS_STATE_54, ARG
+BURNED_VALUE = RESULT
+
+IF BURNED_VALUE > 0
+    HEAL_VALUE = MAX(0, HEAL_VALUE - BURNED_VALUE)
+ENDIF
+LOG_HP = BASE:ARG:NOW_HP
+BASE:ARG:NOW_HP = MIN(BASE:ARG:HP, BASE:ARG:NOW_HP + HEAL_VALUE)
+
+DECREASE_VALUE = BASE:ARG:NOW_HP - LOG_HP
+
+CFLAG:ARG:101 = MAX(0,CFLAG:ARG:101 - MIN(STATE_VALUE / 2, DECREASE_VALUE))

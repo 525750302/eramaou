@@ -1,0 +1,74 @@
+﻿;-------------------------------------------------
+;日常操作相关的函数
+;传入的参数为选中了哪个卡片
+;-------------------------------------------------
+@DO_DAILY, ARG
+#DIM DATE_STYLE
+
+DATE_STYLE = DATE:0:ARG
+
+SELECTCASE DATE_STYLE
+    ;普通战斗
+    CASE 0
+        CALL DUNGEON_INIT
+        CALL GENERATE_ENEMY,0
+        CALL BEGIN_FIGHT
+
+    ;精英战斗
+    CASE 1
+        CALL DUNGEON_INIT
+        CALL GENERATE_ENEMY,1
+        CALL BEGIN_FIGHT 
+
+    ;城市活动
+    CASE 2
+        CALL CITY_ACTIVITY
+    
+    ;随机事件
+    CASE 3
+        CALL RANDOM_EVENT
+
+    ;旅行モンスター
+    CASE 4
+        CALL TRADE_SUCCUBUS
+    
+    ;魔界支援
+    CASE 5
+        CALL GAIN_GIFT
+    
+ENDSELECT
+CALL DAILY_CHANGE, ARG
+
+;每日消费
+FLAG:水晶不足 = 0
+CALL DAILY_COST
+
+;随着天数增加稀有度
+CALL INCREASE_RARE
+
+
+
+;-------------------------------------------------
+;每日水晶消耗
+@DAILY_COST
+CALL SUCCUBUS_COST
+FLAG:水晶 = FLAG:水晶 - RESULT
+CALL ROOM_COST
+FLAG:水晶 = FLAG:水晶 - RESULT
+
+IF FLAG:水晶 < 0
+    FLAG:水晶不足 = 1
+    FLAG:水晶 = 0
+ENDIF
+
+;------------------------------------------------
+;增加稀有度
+@INCREASE_RARE
+IF DAY - FLAG:稀有度计数器 >=10
+    FLAG:二星 += 1
+    FLAG:三星 += 1
+    FLAG:四星 += 1
+    FLAG:五星 += 1
+    FLAG:稀有度计数器 = DAY
+ENDIF
+

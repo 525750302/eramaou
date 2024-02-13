@@ -1,0 +1,48 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;火傷为双方都有的状态属性。难以愈合的火傷，将会降低等同于火傷数值的最大生命值并且阻止活力,火傷无法被抵消
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_54, ARG
+SIF ARG <= 0
+    RETURN
+LOCAL = ENEMY_STATE:ARG:54
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_54, ARG
+SIF ARG<0
+    RETURN 
+LOCAL = CFLAG:ARG:54
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_54, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+
+ENEMY_HP:ARG = MAX(0, ENEMY_HP:ARG - ARG:1)
+ENEMY_NOW_HP:ARG = MIN(ENEMY_HP:ARG, ENEMY_NOW_HP:ARG)
+ENEMY_STATE:ARG:54 += ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_54, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+
+BASE:ARG:HP = MAX(0, BASE:ARG:HP - ARG:1)
+BASE:ARG:NOW_HP = MIN(BASE:ARG:HP, BASE:ARG:NOW_HP)
+CFLAG:ARG:54 += ARG:1
+
+;--------------------------------
+;减少状态数值
+;火傷无法被减少

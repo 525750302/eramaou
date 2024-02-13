@@ -1,0 +1,182 @@
+﻿;-------------------------------------------------
+;魔王相关的函数 更改X与XXX的内容就可以编写新的魔王信息
+;-------------------------------------------------
+;魔王是否存在
+@SUCCUBUS_30X
+
+RETURN 1
+
+;返回魔王的名字
+@SUCCUBUS_NAME_30X
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = XXX
+RETURN
+
+;返回魔王的介绍
+@SUCCUBUS_INTRO_30X
+
+VARSET TEXT_RETURN
+;开头的引用与引用者
+TEXT_RETURN:0 = 
+TEXT_RETURN:1 = 
+;具体的介绍
+;可以使用 _黄色_想要高亮的文字_ 的形式高亮关键词
+;可以使用的颜色请具体参考 PRINT_FORM.ERB 中的 DEF_COLOR 函数
+TEXT_RETURN:2 = ▶
+TEXT_RETURN:3 = ▶
+TEXT_RETURN:4 = ▶
+
+RETURN 5
+
+;返回对魔王的技能介绍，ARG表示为具体哪一个星级的技能
+@SUCCUBUS_SKILL_INTRO_30X, ARG, ARG:1
+#DIM LCOUNT
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301);MAOU_RANK = NUM("魔王星级", 30X)
+
+VARSET TEXT_RETURN
+SELECTCASE ARG
+    CASE 0
+        TEXT_RETURN:0 = 技能名
+        TEXT_RETURN:1 = 技能描述
+        TEXT_RETURN:2 = 技能附录
+        LCOUNT = 3
+    CASEELSE
+
+ENDSELECT
+
+RETURN LCOUNT
+
+;-------------------------------------------------
+;魔王技能发动的函数
+;ARG为目标的编号，注意当魔王受到魅了等效果影响时不会发动技能
+;ARG:1为当前的战斗状态。0为击中目标，1为受到来自目标的攻击，2为受到来自目标的负面效果影响，3为目标进入房间，4为目标进行行动，5为目标被击败，6为发动主动技能，7为进入结算页面
+;8为其他モンスター对目标进行攻击， 9为其他モンスター受到来自目标的攻击， 10为其他モンスター被击败,11为モンスター击败勇者
+;ARG:2为发动的主动技能号  或者是即将收到的伤害 或者是负面状态编号 或者是即将对目标造成的伤害
+;-------------------------------------------------
+@SUCCUBUS_SKILL_30X, ARG, ARG:1, ARG:2, ARG:3
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301);MAOU_RANK = NUM("魔王星级", 30X)
+SELECTCASE ARG:1
+    CASE 1
+        
+        
+    CASE 2 
+    CASEELSE
+
+ENDSELECT
+
+
+;-------------------------------------------------
+;更新魔王属性
+;魔王的能力必须在此处进行初始化 必须进行记录
+;-------------------------------------------------
+@SUCCUBUS_INIT_30X
+
+BASE:MASTER:レベル = 1
+BASE:MASTER:HP = 450
+BASE:MASTER:攻撃力 = 56
+BASE:MASTER:防御力 = 24
+BASE:MASTER:速度 = 3
+BASE:MASTER:种族 = 301;30X
+
+ABL:MASTER:欲望 = 3
+ABL:MASTER:露出癖 = 2
+ABL:MASTER:V感觉 = 2
+ABL:MASTER:施虐毒素 = 1
+ABL:MASTER:V技术 = 2
+ABL:MASTER:指技术 = 2
+ABL:MASTER:V名器度 = RAND:2 +1
+ABL:MASTER:魔乳 = 1
+
+CFLAG:MASTER:冰抗性 = 0
+CFLAG:MASTER:火抗性 = 0
+CFLAG:MASTER:电抗性 = 0
+CFLAG:MASTER:酸抗性 = 0
+CFLAG:MASTER:风抗性 = 0
+CFLAG:MASTER:暗抗性 = 0
+CFLAG:MASTER:光抗性 = 0
+CFLAG:MASTER:喜び抗性 = 2
+
+;-------------------------------------------------
+;魔王的特殊性战斗相关函数（未实装）
+;-------------------------------------------------
+@SUCCUBUS_SEX_SKILL_30X, ARG
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301);MAOU_RANK = NUM("魔王星级", 30X)
+SELECTCASE ARG:1
+    CASE 1
+        
+        
+    CASE 2 
+    CASEELSE
+
+ENDSELECT
+
+
+;返还初始HP
+@SUCCUBUS_START_HP_30X
+RETURN 450
+
+;返还初始攻撃力
+@SUCCUBUS_START_ATT_30X
+RETURN 56
+
+;返还初始HP
+@SUCCUBUS_START_DEF_30X
+RETURN 24
+
+;返还初始速度
+@SUCCUBUS_START_SPEED_30X
+RETURN 3
+
+;返回モンスター的魔法抗性
+;-1易伤（收到伤害翻倍） 0正常 1抵抗（收到的伤害减半） 2高抗（收到的伤害为原本的10%）
+;冰伤害为1，火伤害为2，电伤害为3，酸伤害为4，风伤害为5，暗伤害为6，光伤害为7,喜び伤害为8
+@SUCCUBUS_MAGIC_RESIST_30X
+#DIM RESIST,10
+
+;冰
+RESIST:1 = 0
+;火
+RESIST:2 = 0
+;电
+RESIST:3 = 0
+;酸
+RESIST:4 = 0
+;风
+RESIST:5 = 0
+;暗
+RESIST:6 = 0
+;光
+RESIST:7 = 0
+;喜び
+RESIST:8 = 1
+
+RETURN RESIST
+
+;添加战斗记录
+;ARG:1为交互的勇者编号，当为-1时表示死于状态
+;ARG:2为モンスター编号
+;ARG:3为触发的负面状态,1为表示处于捕获状态下
+;ARG为1时表示モンスター战败，2表示モンスター击败目标
+@SUCCUBUS_ADD_BATTLE_LOG_30X,ARG,ARG:1,ARG:2,ARG:3
+#DIMS SUCCUBUS_NAME
+#DIMS ENEMY_NAME
+CALL CALL_SUCCUBUS_NAME,ARG:2,0
+SUCCUBUS_NAME = %TEXT_RETURN:0%
+CALL RESET_TEXT_RETURN
+TRYCALLFORM ENEMY_NAME_{ENEMY:(ARG:1)}
+IF TEXT_RETURN:0 !=""
+    ENEMY_NAME = %TEXT_RETURN:0%
+ENDIF
+SELECTCASE ARG
+    ;モンスター战败
+    CASE 1
+        LOCALS = 很遗憾，%SUCCUBUS_NAME%被%ENEMY_NAME%击败了
+        CALL ADD_BATTLE_LOG,LOCALS
+    ;モンスター击败目标
+    CASE 2
+        LOCALS = %SUCCUBUS_NAME%击败了%ENEMY_NAME%
+        CALL ADD_BATTLE_LOG,LOCALS
+ENDSELECT

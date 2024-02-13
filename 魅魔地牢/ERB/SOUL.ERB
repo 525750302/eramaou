@@ -1,0 +1,82 @@
+﻿;-------------------------------------------------
+;灵魂相关的函数，包括使用灵魂购买升级与新的卡牌包
+;-------------------------------------------------
+;计算本次游戏获得的灵魂
+@CAL_SOUL
+;暂定的计算公式为天数/10
+SOUL = SOUL + DAY/10
+
+;灵魂市场 可以用于升级魔王的重生レベル
+;或者是解锁新的卡牌包
+;玩家也可以在这里选择使用或者不使用卡牌包
+@SOUL_MARKET
+#DIM MEMO_LINECOUNT
+#DIM COUNT1
+#DIM COUNT2
+#DIMS MAOU_NAME
+#DIM MAOU_RANK
+
+MEMO_LINECOUNT = LINECOUNT
+
+CALL DRAWLINES_CENTER_DIY, "ஐ 灵魂市场 ஐ", "-"
+
+PRINTL
+PRINTFORML -神秘存在-
+PRINTFORML 虽然这次重生计划失败了，但是我们也收割到了很多灵魂
+PRINTFORML 用这些灵魂和我交易吧，我可以让你在下一次重生中变得更加强大
+
+PRINTL
+LOCALS = {SOUL}
+PRINTFORML %BL(2)%持有的灵魂：%TEXT_LJ(LOCALS,20)%
+
+DRAWLINE
+PRINTFORML 晋升重生レベル
+;最多20位魔王
+FOR COUNT1, 0, 20
+    TRYCALLFORM SUCCUBUS_{COUNT1 + 301}
+    IF RESULT > 0 
+        TRYCALLFORM SUCCUBUS_NAME_{COUNT1 + 301}
+        MAOU_NAME = %TEXT_RETURN:0%
+        MAOU_RANK = NUM("魔王星级",COUNT1 + 301)
+        LOCALS = 重生レベル{MAOU_RANK}⭐
+        IF MAOU_RANK< 10
+            PRINTFORML [{COUNT1 + 301}] %TEXT_LJ(MAOU_NAME,20)% %TEXT_LJ(LOCALS,20)%  1灵魂
+        ELSE
+            PRINTPLAIN [{COUNT1 + 301}] %TEXT_LJ(MAOU_NAME,20)% %TEXT_LJ(LOCALS,20)%  レベル已满
+            PRINTL 
+        ENDIF
+    ENDIF
+NEXT
+
+PRINTL
+DRAWLINE
+PRINTFORML [500]解锁卡牌包
+PRINTFORML [600]开牌包管理
+
+PRINTL 
+PRINTFORML [999]离开
+
+$INPUT_LOOP
+INPUT
+
+LOCAL = RESULT
+SELECTCASE LOCAL
+    CASE 999
+        PRINTFORML 一旦离开下次再来光顾就是下次游戏结束的时候了，确定吗？
+        PRINTL
+        PRINTFORML [1]确定
+        PRINTFORML [2]再等一下
+        INPUT
+        IF RESULT == 1
+            CLEARLINE LINECOUNT - MEMO_LINECOUNT
+            RETURN 
+        ENDIF
+    
+    CASE 301 TO 320
+        IF SOUL> 1
+            FLAG:(LOCAL - 301 + 40) = FLAG:(LOCAL - 301 + 40) + 1
+            SOUL = SOUL - 1
+        ENDIF
+ENDSELECT
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+RESTART

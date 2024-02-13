@@ -1,0 +1,241 @@
+﻿;-------------------------------------------------
+;用于加载特殊字符或者语句
+;-------------------------------------------------
+@TEXTS(ARGS, ARG)
+#FUNCTIONS
+#DIM LCOUNT
+
+VARSET LOCALS
+
+SELECTCASE ARGS
+CASE "日期表示"
+;50までということで
+CASE "ローマ数字"
+	SELECTCASE ARG/10
+	CASE 0
+		LOCALS = 
+	CASE 1
+		LOCALS = Ⅹ
+	CASE 2
+		LOCALS = ⅩⅩ
+	CASE 3
+		LOCALS = ⅩⅩⅩ
+	CASE 4
+		LOCALS = ⅩＬ
+	CASE 5
+		LOCALS = Ｌ
+	ENDSELECT
+
+	SELECTCASE ARG%10
+	CASE 9
+		LOCALS += "Ⅸ"
+	CASE 8
+		LOCALS += "Ⅷ"
+	CASE 7
+		LOCALS += "Ⅶ"
+	CASE 6
+		LOCALS += "Ⅵ"
+	CASE 5
+		LOCALS += "Ⅴ"
+	CASE 4
+		LOCALS += "Ⅳ"
+	CASE 3
+		LOCALS += "Ⅲ"
+	CASE 2
+		LOCALS += "Ⅱ"
+	CASE 1
+		LOCALS += "Ⅰ"
+	ENDSELECT
+
+CASE "汉数字"
+	SELECTCASE ARG
+	CASE 0
+		LOCALS = 零
+		RETURNF LOCALS
+	CASE 1
+		LOCALS = 一
+		RETURNF LOCALS
+	CASE IS >= 10000
+		LOCALS = 万
+		ARG /= 10000
+	CASE IS >= 1000
+		LOCALS = 千
+		ARG /= 1000
+	CASE IS >= 100
+		LOCALS = 百
+		ARG /= 100
+	CASE IS >= 10
+		LOCALS = 十
+		ARG /= 10
+	ENDSELECT
+
+	SELECTCASE ARG
+	CASE 9
+		LOCALS = 九%LOCALS%
+	CASE 8
+		LOCALS = 八%LOCALS%
+	CASE 7
+		LOCALS = 七%LOCALS%
+	CASE 6
+		LOCALS = 六%LOCALS%
+	CASE 5
+		LOCALS = 五%LOCALS%
+	CASE 4
+		LOCALS = 四%LOCALS%
+	CASE 3
+		LOCALS = 三%LOCALS%
+	CASE 2
+		LOCALS = 二%LOCALS%
+	ENDSELECT
+
+CASE "调教レベル"
+	SELECTCASE ARG
+	CASE 0 TO 9
+		LOCALS = Lv%TOSTR(ARG)%
+	CASE 10
+		LOCALS = LvA
+	CASE 11
+		LOCALS = LvB
+	CASE 12
+		LOCALS = LvC
+	CASE 13
+		LOCALS = LvD
+	CASE 14
+		LOCALS = LvE
+	CASE 15
+		LOCALS = LvF
+	CASEELSE
+		LOCALS = Max
+	ENDSELECT
+
+CASE "0.1"
+	LOCALS = {ARG/10}.{ARG%10}
+CASE "0.01"
+	LOCALS = {ARG/100}.{(ARG%100)/10}{ARG%10}
+CASE "0.001"
+	LOCALS = {ARG/1000}.{(ARG%1000)/100}{(ARG%100)/10}{ARG%10}
+CASE "金钱"
+	LOCALS = 金钱数: ￥{MONEY}
+CASE "星期"
+	SELECTCASE (DAY - 1)%7
+	CASE 0
+		LOCALS = 日
+	CASE 1
+		LOCALS = 一
+	CASE 2
+		LOCALS = 二
+	CASE 3
+		LOCALS = 三
+	CASE 4
+		LOCALS = 四
+	CASE 5
+		LOCALS = 五
+	CASE 6
+		LOCALS = 六
+	ENDSELECT
+CASE "季節"
+	SELECTCASE FLAG:季節
+	CASE 0
+		LOCALS = 春
+	CASE 1
+		LOCALS = 夏
+	CASE 2
+		LOCALS = 秋
+	CASE 3
+		LOCALS = 冬
+	ENDSELECT
+CASE "季節詳細"
+	SELECTCASE FLAG:季節
+	CASE 0
+		SELECTCASE (FLAG:日 - 1) % (NUM("１年の長さ")/4)
+		CASE IS >= (NUM("１年の長さ")/4)*4/7
+			LOCALS = 初夏
+		CASEELSE
+			LOCALS = 春
+		ENDSELECT
+	CASE 1
+		SELECTCASE (FLAG:日 - 1) % (NUM("１年の長さ")/4)
+		CASE IS >= (NUM("１年の長さ")/4)*5/7
+			LOCALS = 初秋
+		CASEELSE
+			LOCALS = 夏
+		ENDSELECT
+	CASE 2
+		SELECTCASE (FLAG:日 - 1) % (NUM("１年の長さ")/4)
+		CASE IS >= (NUM("１年の長さ")/4)*5/7
+			LOCALS = 晩秋
+		CASEELSE
+			LOCALS = 秋
+		ENDSELECT
+	CASE 3
+		LOCALS = 冬
+	ENDSELECT
+CASE "時間"
+	SELECTCASE TIME
+	CASE 0
+		LOCALS = 朝
+	CASE 1
+		LOCALS = 昼
+	CASE 3
+		LOCALS = 傍晚
+	CASEELSE
+		LOCALS = 夜
+	ENDSELECT
+CASE "天数"
+	LOCALS:1 = {DAY}
+	LOCALS = %TEXT_CJ(LOCALS:1,4)%天
+CASE "水晶"
+	LOCALS:1 = ◈{FLAG:水晶}
+	LOCALS = 水晶:%LOCALS:1%
+
+CASE "属性抗性"
+	SELECTCASE ARG
+		CASE -1
+			LOCALS = _红色_×
+		
+		CASE 0
+			LOCALS = -
+
+		CASE 1
+			LOCALS = _黄色_△
+
+		CASE 2
+			LOCALS = _绿_⊙
+	ENDSELECT
+ENDSELECT
+
+RETURNF LOCALS
+
+
+
+;-------------------------------------------------
+;返回モンスター的名字,ARG:1 0为昵称，1为简称, 2为种族名
+;若ARG为-1 那么不存在モンスター
+;-------------------------------------------------
+@CALL_SUCCUBUS_NAME,ARG,ARG:1
+#DIM RACE
+VARSET TEXT_RETURN
+SIF ARG < 0 
+	RETURN
+
+RACE = BASE:ARG:种族
+
+IF ARG != MASTER
+	IF ARG:1 == 1
+	    IF CSTR:ARG:简称 == ""
+	        TRYCALLFORM SUCCUBUS_NAME_{RACE},ARG:1
+	    ELSE
+	        TEXT_RETURN:0 = %CSTR:ARG:简称%
+	    ENDIF
+	ELSEIF ARG:1 == 0
+	    IF CSTR:ARG:昵称 == ""
+	        TRYCALLFORM SUCCUBUS_NAME_{RACE},ARG:1
+	    ELSE
+	        TEXT_RETURN:0 = %CSTR:ARG:昵称%
+	    ENDIF
+	ELSE
+		TRYCALLFORM SUCCUBUS_NAME_{RACE},ARG:1
+	ENDIF
+ELSE
+	TRYCALLFORM SUCCUBUS_NAME_{RACE}
+ENDIF

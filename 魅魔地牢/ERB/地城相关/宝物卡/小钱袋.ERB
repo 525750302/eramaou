@@ -1,0 +1,41 @@
+﻿;-------------------------------------------------
+;小钱袋
+;编号0 レベル0 
+;立即获得100金币和3水晶
+;不限获得次数
+;-------------------------------------------------
+;返回是否有该编号的宝物
+@TREASURE_0
+RETURN 1
+
+@TREASURE_NAME_0
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = 財布
+RETURN 
+
+;检查是否得到
+@TREASURE_GET_0
+RETURN 0
+
+@TREASURE_STAR_0
+RETURN 0
+
+;返回宝物的文本
+@TREASURE_TEXT_0
+VARSET TEXT_RETURN
+;宝物类的没有引用文本
+;宝物类的第一行必须是非常简短的说明，不能多于九个字
+TEXT_RETURN:0 = 金貨と水晶
+TEXT_RETURN:1 = 金貨100枚と水晶3個を入手
+TEXT_RETURN:2 = ▶。。。
+
+;返回文本的行数
+RETURN 3
+
+
+;执行获得宝物之后的相关内容
+;需要按照情况进行发挥
+@TREASURE_ACT_0
+MONEY = MONEY +100
+FLAG:水晶 += 3
+RETURN

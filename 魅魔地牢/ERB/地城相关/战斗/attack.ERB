@@ -1,0 +1,241 @@
+﻿;-------------------------------------------------
+;攻击函数相关
+;-------------------------------------------------
+;勇者的攻击函数
+;ARG为勇者的编号 ARG:1为目标的编号 ARG:2为是否发动主动技能 
+;如果收到魅了效果影响会攻击别的目标
+@ENEMY_ATTACK, ARG, ARG:1 ,ARG:2
+#DIM COUNT1
+#DIM COUNT2
+#DIM ENEMY_RACE
+#DIM SUCCUBUS_RACE
+#DIM DAMAGE
+#DIM DEFEND
+#DIM TARGET_NO
+#DIM LOCATIONX
+#DIM LOCATIONY
+#DIM FLAG_BETRAY
+IF (ARG <= 0) || (ARG:1 == -1)
+    PRINT 编号错误 攻击函数
+    RETURN
+ENDIF
+
+ENEMY_RACE = ENEMY:ARG
+SUCCUBUS_RACE = BASE:(ARG:1):种族
+IF SUCCUBUS_RACE == MASTER
+    SUCCUBUS_RACE = MAOU_RACE
+ENDIF
+
+$NO_ACTIVE_SKILL
+FLAG_BETRAY = 0
+IF ARG:2 == 0
+    DAMAGE = ENEMY_ATT:ARG
+    ;预备的魅了和混乱效果位置
+    CALL CHECK_ENEMY_STATE, ARG, 8
+    LOCAL = RESULT
+    ;没有收到影响
+    IF LOCAL == -1
+        TARGET_NO = ARG:1
+        CALL CHECK_ENEMY_STATE,ARG,0,DAMAGE,ARG:1,0
+        FLAG_BETRAY = 0
+    ;攻击勇者
+    ELSE
+        TARGET_NO = LOCAL
+        CALL CHECK_ENEMY_STATE,ARG,0,DAMAGE,-1,LOCAL
+        FLAG_BETRAY = 1
+    ENDIF
+    ;并检查是否可以进行普通攻击
+    DAMAGE = RESULT
+    ;不可进行普通攻击 失手
+    IF DAMAGE == -1
+        RETURN
+    ENDIF
+
+    IF TARGET_NO == ARG:1 && FLAG_BETRAY == 0
+        TRYCALLFORM ENEMY_SKILL_{ENEMY_RACE}, TARGET_NO, 0, DAMAGE, ARG
+        SIF RESULT > 0
+            DAMAGE = RESULT
+        TRYCALLFORM SUCCUBUS_SKILL_{SUCCUBUS_RACE}, ARG, 1, DAMAGE, ARG:1
+        SIF RESULT > 0
+            DAMAGE = RESULT
+        CALL MAOU_ACT_WHEN_SUCCUBUS_BEATTACKED, TARGET_NO, ARG, DAMAGE
+        SIF RESULT > 0
+            DAMAGE = RESULT
+        LOCATIONX = ENEMY_LOCATION_X:ARG
+        LOCATIONY = ENEMY_LOCATION_Y:ARG
+        TRYCALLFORM ROOM_ACT_{DUNGEON:LOCATIONX:LOCATIONY}, ARG, 10,0,DUNGEON_LEVEL:LOCATIONX:LOCATIONY, LOCATIONX, LOCATIONY
+        ;实行攻击
+        CALL CHECK_SUCCUBUS_STATE,TARGET_NO,1,DAMAGE,-1,ARG
+        DAMAGE = RESULT
+        ;防御力基本上不会有什么变化
+        DEFEND = BASE:(TARGET_NO):防御力
+        BASE:(TARGET_NO):NOW_HP -= MAX(DAMAGE - DEFEND , 1)
+        ;理论上此处需要判断锁血
+        ;如果モンスター被击败则进行战斗记录
+        IF BASE:(TARGET_NO):NOW_HP <= 0
+            IF ENEMY_CATCH:(ARG) == 1
+                TRYCALLFORM SUCCUBUS_ADD_BATTLE_LOG_{SUCCUBUS_RACE},1, ARG, TARGET_NO, 1
+            ELSE
+            TRYCALLFORM SUCCUBUS_ADD_BATTLE_LOG_{SUCCUBUS_RACE},1, ARG, TARGET_NO, 0
+            ENDIF
+        ENDIF
+    ELSEIF FLAG_BETRAY == 1
+        ;被攻击的友方会触发受击状态反应
+        CALL CHECK_ENEMY_STATE,TARGET_NO,1,DAMAGE,-1,ARG
+        DEFEND = ENEMY_DEF:(TARGET_NO)
+        ENEMY_NOW_HP:(TARGET_NO) -= MAX(DAMAGE - DEFEND , 1)
+    ENDIF
+ELSEIF ARG:2 == 1
+    ;主动技能不会被魅了影响
+    CALL CHECK_ENEMY_STATE,ARG,6
+    IF RESULT == 0
+        TRYCALLFORM ENEMY_SKILL_{ENEMY_RACE}, ARG:1,6 , ARG
+        ;没有可以发动的主动技能
+        IF RESULT == 0
+            ARG:2 = 0
+            GOTO NO_ACTIVE_SKILL
+        ENDIF
+    ENDIF
+ENDIF
+
+;ARG为モンスター的编号 ARG:1为攻击对象的勇者的编号
+@SUCCUBUS_ATTACK, ARG, ARG:1 ,ARG:2
+#DIM COUNT1
+#DIM COUNT2
+#DIM ENEMY_RACE
+#DIM SUCCUBUS_RACE
+#DIM DAMAGE
+#DIM DEFEND
+#DIM TARGET_NO
+#DIM LOCATIONX
+#DIM LOCATIONY
+
+IF (ARG:1 <= 0) || (ARG <= -1)
+    PRINT 编号错误 攻击函数
+    RETURN
+ENDIF
+
+ENEMY_RACE = ENEMY:(ARG:1)
+SUCCUBUS_RACE = BASE:ARG:种族
+IF SUCCUBUS_RACE == MASTER
+    SUCCUBUS_RACE = MAOU_RACE
+ENDIF
+
+$NO_ACTIVE_SKILL
+
+IF ARG:2 == 0
+    DAMAGE = BASE:ARG:攻撃力
+    CALL CHECK_SUCCUBUS_STATE,ARG,0,DAMAGE,ARG:1
+    DAMAGE = RESULT
+    ;不可进行普通攻击 失手
+    IF DAMAGE == -1
+        RETURN
+    ENDIF
+
+    ;モンスター不会有混乱和魅了状态
+    TARGET_NO = ARG:1
+
+    IF TARGET_NO == ARG:1
+        TRYCALLFORM SUCCUBUS_SKILL_{SUCCUBUS_RACE}, ARG:1, 0, DAMAGE,ARG
+        SIF RESULT > 0
+            DAMAGE = RESULT
+        TRYCALLFORM ENEMY_SKILL_{ENEMY_RACE}, ARG, 1, DAMAGE, ARG:1
+        SIF RESULT > 0
+            DAMAGE = RESULT
+        LOCATIONX = ENEMY_LOCATION_X:(ARG:1)
+        LOCATIONY = ENEMY_LOCATION_Y:(ARG:1)
+        TRYCALLFORM ROOM_ACT_{DUNGEON:LOCATIONX:LOCATIONY}, ARG:1, 11,0,DUNGEON_LEVEL:LOCATIONX:LOCATIONY, LOCATIONX, LOCATIONY
+
+        ;实行攻击
+        CALL CHECK_ENEMY_STATE,ARG:1,1,DAMAGE,ARG,0
+        DAMAGE = RESULT
+        ;防御力基本上不会有什么变化
+        DEFEND = ENEMY_DEF:(ARG:1)
+        ;モンスター发动攻击时魔王技能的效果
+        CALL MAOU_ACT_PER_SUCCUBUS_ATTACK,ARG, ARG:1 ,DAMAGE
+        DAMAGE = RESULT
+        ENEMY_NOW_HP:(ARG:1) -= MAX(DAMAGE - DEFEND , 1)
+        IF ENEMY_CATCH:(ARG:1) == 1
+            BASE:ARG:NOW_HP = MIN(BASE:ARG:HP, BASE:ARG:NOW_HP + BASE:ARG:攻撃力 * FLAG:吸能倍率 / 10)
+        ENDIF
+        IF ENEMY_NOW_HP:(ARG:1) <= 0
+            IF ENEMY_CATCH:(ARG:1) == 1
+                TRYCALLFORM SUCCUBUS_ADD_BATTLE_LOG_{SUCCUBUS_RACE},2, ARG:1, ARG, 1
+            ELSE
+            TRYCALLFORM SUCCUBUS_ADD_BATTLE_LOG_{SUCCUBUS_RACE},2, ARG:1, ARG, 0
+            ENDIF
+        ENDIF
+    ENDIF
+ELSEIF ARG:2 == 1
+    CALL CHECK_SUCCUBUS_STATE,ARG,6
+    IF RESULT == 0
+        TRYCALLFORM ENEMY_SKILL_{ENEMY_RACE}, ARG:1, 6, ARG:1
+        ;没有可以发动的主动技能
+        IF RESULT == 0
+            ARG:2 = 0
+            GOTO NO_ACTIVE_SKILL
+        ENDIF
+    ENDIF
+ENDIF
+
+;------------------------------
+;房间给予的魔法类伤害，确定伤害计算抗性和实际删去血量
+;物理伤害为确定的伤害，不计算勇者的防御能力，但是会被护甲状态抵消
+;魔法伤害会被勇者的对应抗性所一定比例消除
+;ARG为勇者的编号
+;ARG:1为受到的伤害量
+;ARG:2为魔法伤害的类型
+;冰伤害为1，火伤害为2，电伤害为3，酸伤害为4，风伤害为5，暗伤害为6，光伤害为7,喜び伤害为8
+@ROOM_ATTACK,ARG,ARG:1,ARG:2
+#DIM DAMAGE
+;由于感電引起的额外伤害
+#DIM ELECTRICITY_DAMEGE
+IF (ARG:1 <= 0) || (ARG <= -1)
+    PRINT 编号错误 房间攻击函数
+    RETURN
+ENDIF
+
+DAMAGE = ARG:1
+
+CALL CHECK_ENEMY_STATE_64,ARG
+ELECTRICITY_DAMEGE = RESULT
+IF ELECTRICITY_DAMEGE > 0
+    CALL DECREASE_ENEMY_STATE_64,ARG
+ENDIF
+
+;检查抗性相关
+
+SELECTCASE ARG:2
+    CASE 0 
+    ;后续需要更新护甲状态对物理伤害的抵抗
+        ENEMY_NOW_HP:ARG = ENEMY_NOW_HP:ARG - DAMAGE
+    CASEELSE
+        CALL MAGIC_ATTACK_TO_ENEMY,ARG,ARG:1,ARG:2
+ENDSELECT
+
+;モンスター发动攻击时魔王技能的效果
+;ARG为モンスター的编号 ARG:1为攻击对象的勇者的编号 ARG:2 伤害
+@MAOU_ACT_PER_SUCCUBUS_ATTACK,ARG, ARG:1 ,ARG:2
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", MAOU_RACE)
+;リリス
+IF MAOU_RACE == 301 
+    IF MAOU_RANK > 4
+        CALL CHECK_ENEMY_STATE_51, ARG:1
+        IF RESULT > 0
+            CALL CALL ADD_SUCCUBUS_STATE_100, 0, BASE:ARG:攻撃力
+        ENDIF
+    ENDIF
+ENDIF
+
+RETURN ARG:2
+
+
+;每当モンスター被攻击时魔王的技能发动的效果
+;ARG:モンスター编号 ARG:1发动攻击的勇者编号 ARG:2 伤害
+@MAOU_ACT_WHEN_SUCCUBUS_BEATTACKED, ARG, ARG:1, ARG:2
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", MAOU_RACE)
+
+
+RETURN ARG:2

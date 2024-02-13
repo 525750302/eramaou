@@ -1,0 +1,212 @@
+﻿;-------------------------------------------------
+;绿史莱姆的人物卡
+;モンスター种类编号2
+;-------------------------------------------------
+;记录モンスター数量
+@SUCCUBUS_NUM_2
+#FUNCTION
+RETURNF SUCCUBUS_NUM:2:0
+
+;モンスター数量增加时管理名单
+@SUCCUBUS_ADD_2,ARG
+SUCCUBUS_NUM:2:0 += 1
+FOR LOCAL,1,300
+    IF SUCCUBUS_NUM:2:LOCAL == 0
+        SUCCUBUS_NUM:2:LOCAL = ARG
+        BREAK
+    ENDIF
+NEXT
+RETURN LOCAL
+
+;モンスター数量减少时管理名单
+@SUCCUBUS_DEL_2,ARG
+SUCCUBUS_NUM:2:0 = MAX(SUCCUBUS_NUM:2:0 - 1, 0)
+FOR LOCAL,1,300
+    IF SUCCUBUS_NUM:2:LOCAL == ARG
+        SUCCUBUS_NUM:2:LOCAL = 0
+        BREAK
+    ENDIF
+NEXT
+RETURN LOCAL
+
+;----------------------------------------
+;返回种族名,0为全称，1为简称
+@SUCCUBUS_NAME_2,ARG
+
+VARSET TEXT_RETURN
+IF ARG == 0 
+    TEXT_RETURN:0 = スライム
+ENDIF
+IF ARG == 1
+    TEXT_RETURN:0 = スライム
+ENDIF
+RETURN
+
+;返回モンスター每天消耗的水晶数量
+;一般的モンスター每天消耗量为星级-2，最小不能小于0
+@SUCCUBUS_COST_2
+;修改RETURN后面的数值
+RETURN 0
+
+;返回モンスター星级
+@SUCCUBUS_STAR_2
+;修改RETURN后面的数值
+RETURN 1
+
+;是否只能用合成获得
+;0代表不是 1代表是
+@SUCCUBUS_ONLY_SYN_2
+RETURN 0
+
+;是否唯一
+;0代表不是 1代表是
+@SUCCUBUS_ONLY_2
+RETURN 0
+
+;介绍
+@SUCCUBUS_INTRO_2
+;开头的引用与引用者
+
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = 「グ……」
+TEXT_RETURN:1 = スライム
+
+;具体的介绍
+;可以使用 _黄色_想要高亮的文字_ 的形式高亮关键词
+;可以使用的颜色请具体参考 PRINT_FORM.ERB 中的 DEF_COLOR 函数
+TEXT_RETURN:2 = ▶このスライムは知性の面で他の種類とは一線を画します。
+TEXT_RETURN:3 = ▶その単純な存在からくる特徴的な振る舞いは、瞬時に分かるほどに限定的で、ほとんど本能的な反応に頼っています。
+TEXT_RETURN:4 = ▶スライムは探索者たちにとっては手強い存在です。
+TEXT_RETURN:5 = ▶戦略性や複雑な行動は期待できず、基本的な生存本能に従って動くことが主です。
+TEXT_RETURN:6 = ▶その結果、予測不能であり、時折奇妙な行動を見せることがあります。
+TEXT_RETURN:7 = ▶しかし、その単純さゆえに、時には愛らしい一面もあります。
+
+RETURN 8;使用的行数
+
+;技能介绍
+;ARG为技能的序号
+;ARG:1为人物的编号
+@SUCCUBUS_SKILL_INTRO_2,ARG,ARG:1
+#DIM LCOUNT
+
+VARSET TEXT_RETURN
+SELECTCASE ARG
+CASE 0
+    TEXT_RETURN:0 = 再生
+    TEXT_RETURN:1 = (Passive Ability)攻撃を受けた時{3 + BASE:(ARG:1):攻撃力/20}(3+0.05*攻撃力)の_红色_活力_を自身に付ける
+    LCOUNT = 2;使用的行数
+ENDSELECT
+RETURN LCOUNT
+
+
+;-------------------------------------------------
+;技能发动的函数
+;ARG为目标的编号，注意当受到魅了等效果影响时不会发动技能
+;ARG:3为モンスター的编号
+;ARG:1为当前的战斗状态。0为击中目标，1为受到来自目标的攻击，2为受到来自目标的负面效果影响，3为目标进入房间，4为目标进行行动，5为目标被击败，6为发动主动技能，7为进入结算页面
+;ARG:2为发动的主动技能号 或者是即将收到的伤害 或者是负面状态编号 或者是即将对目标造成的伤害
+;-------------------------------------------------
+@SUCCUBUS_SKILL_2, ARG, ARG:1, ARG:2, ARG:3
+
+SELECTCASE ARG:1
+    CASE 1
+        CALL ADD_SUCCUBUS_STATE_101, ARG:3 , 3 + BASE:(ARG:3):攻撃力/20
+    CASE 6
+        
+        
+    CASE 2 
+    CASEELSE
+        
+ENDSELECT
+
+
+;返还モンスター一个回合能够进行的行动次数
+@SUCCUBUS_ACTION_TURN_2
+RETURN 1
+
+;返还初始HP
+@SUCCUBUS_START_HP_2
+RETURN 95
+
+;返还初始攻撃力
+@SUCCUBUS_START_ATT_2
+RETURN 10
+
+;返还初始防御力
+@SUCCUBUS_START_DEF_2
+RETURN 45
+
+;返还初始速度
+@SUCCUBUS_START_SPEED_2
+RETURN 3
+
+;对モンスター的各个数据进行初始化
+@SUCCUBUS_INIT_2
+RETURN
+
+;返还技能数量
+@SUCCUBUS_SKILL_NUM_2
+RETURN 1
+
+;返回モンスター的魔法抗性
+;-1易伤（收到伤害翻倍） 0正常 1抵抗（收到的伤害减半） 2高抗（收到的伤害为原本的10%）
+;冰伤害为1，火伤害为2，电伤害为3，酸伤害为4，风伤害为5，暗伤害为6，光伤害为7,喜び伤害为8
+@SUCCUBUS_MAGIC_RESIST_2
+#DIM RESIST,10
+
+;冰
+RESIST:1 = 0
+;火
+RESIST:2 = -1
+;电
+RESIST:3 = 0
+;酸
+RESIST:4 = 2
+;风
+RESIST:5 = 0
+;暗
+RESIST:6 = 0
+;光
+RESIST:7 = 0
+;喜び
+RESIST:8 = 1
+
+RETURN RESIST
+
+;添加战斗记录
+;ARG:1为交互的勇者编号，当为-1时表示死于状态
+;ARG:2为モンスター编号
+;ARG:3为触发的负面状态,1为表示处于捕获状态下
+;ARG为1时表示モンスター战败，2表示モンスター击败目标
+@SUCCUBUS_ADD_BATTLE_LOG_2,ARG,ARG:1,ARG:2,ARG:3
+#DIMS SUCCUBUS_NAME
+#DIMS ENEMY_NAME
+CALL CALL_SUCCUBUS_NAME,ARG:2,0
+SUCCUBUS_NAME = %TEXT_RETURN:0%
+CALL RESET_TEXT_RETURN
+TRYCALLFORM ENEMY_NAME_{ENEMY:(ARG:1)}
+IF TEXT_RETURN:0 !=""
+    ENEMY_NAME = %TEXT_RETURN:0%
+ENDIF
+SELECTCASE ARG
+    ;モンスター战败
+    CASE 1
+        LOCALS = 残念ですが、%SUCCUBUS_NAME%が%ENEMY_NAME%に倒されました。
+        CALL ADD_BATTLE_LOG,LOCALS
+    ;モンスター击败目标
+    CASE 2
+        LOCALS = %SUCCUBUS_NAME%が%ENEMY_NAME%を撃破した
+        CALL ADD_BATTLE_LOG,LOCALS
+ENDSELECT
+
+@SUCCUBUS_BAG_CHECK_2
+IF FLAG:500>0
+    RETURN 1
+ENDIF
+RETURN 0
+
+;关于モンスター的合成方式
+;如果不是有固定合成方式的モンスター返回0,0,0即可
+;返回需要的素材数量，一般为2个，以及她们的编号
+@SUCCUBUS_FUSION_FUNCTION_2
+RETURN 0,0,0

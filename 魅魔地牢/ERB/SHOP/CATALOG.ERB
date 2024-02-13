@@ -1,0 +1,460 @@
+﻿;图鉴相关的函数部分
+
+;---------------------------
+;房间目录
+;需要添加搜索排序方法
+;计划按照星级 和 序号顺序进行排序
+;
+;---------------------------
+@ROOM_CATALOG
+#DIM MEMO_LINECOUNT
+#DIM COUNT1
+#DIM COUNT2
+;判断是否是只显示合成房间
+#DIM FLAG_FUSION
+;判断排序方式
+;0为默认序号 1为按照星级顺序 2为按照星级倒序
+#DIM FLAG_RANK
+#DIM CHECK_FLAG
+#DIM ROOM_NO
+#DIM CATALOG_NO,300
+#DIMS CATALOG,300
+#DIM PAPER_NO
+#DIM MAX_PAPER
+
+FLAG_FUSION = 0
+FLAG_RANK = 0
+MEMO_LINECOUNT = LINECOUNT
+PAPER_NO = 0
+
+$CATALOG_BEGIN
+PRINTL
+CALL DRAWLINES_CENTER_DIY,"~施設図鑑~","-"
+PRINTL
+ROOM_NO = 0
+VARSET CATALOG
+VARSET CATALOG_NO
+
+;按照默认序号
+IF FLAG_RANK == 0
+    FOR COUNT1,1,301
+        ;检查房间是否存在这个种类
+        CALL CHECK_ROOM_TYPE_EXIST, COUNT1
+
+        SIF RESULT < 0
+            CONTINUE
+        CHECK_FLAG = 0
+        IF FLAG_FUSION == 1
+            VARSET RESULT
+            TRYCALLFORM ROOM_FUSION_FUNCTION_{COUNT1}
+            CHECK_FLAG = RESULT
+        ELSE
+            CHECK_FLAG = 1
+        ENDIF
+        IF CHECK_FLAG > 0
+            TRYCALLFORM ROOM_NAME_{COUNT1}
+            CATALOG:(ROOM_NO+1) = [{ROOM_NO + 1}]%TEXT_RETURN:0%
+            CATALOG_NO:(ROOM_NO+1) = COUNT1
+            ROOM_NO = ROOM_NO + 1
+        ENDIF
+    NEXT
+;按照星级顺序
+ELSEIF FLAG_RANK == 1
+    FOR COUNT1,1,6
+        FOR COUNT2,1,301
+            ;检查房间是否存在这个种类
+            CALL CHECK_ROOM_TYPE_EXIST, COUNT2
+            SIF RESULT < 0
+                CONTINUE
+            LOCAL = 0
+            RESULT = 0
+            TRYCALLFORM ROOM_RANK_{COUNT2}
+            LOCAL = RESULT
+            IF LOCAL == 0
+                CONTINUE
+            ENDIF
+            IF LOCAL == COUNT1
+                CHECK_FLAG = 0
+                IF FLAG_FUSION == 1
+                    VARSET RESULT
+                    TRYCALLFORM ROOM_FUSION_FUNCTION_{COUNT2}
+                    CHECK_FLAG = RESULT
+                ELSE
+                    CHECK_FLAG = 1
+                ENDIF
+                IF CHECK_FLAG > 0
+                    TRYCALLFORM ROOM_NAME_{COUNT2}
+                    CATALOG:(ROOM_NO+1) = [{ROOM_NO + 1}]%TEXT_RETURN:0%
+                    CATALOG_NO:(ROOM_NO+1) = COUNT2
+                    ROOM_NO = ROOM_NO + 1
+                ENDIF
+            ENDIF
+        NEXT
+    NEXT
+;按照星级倒序
+ELSEIF FLAG_RANK == 2
+    FOR COUNT1,1,6
+        FOR COUNT2,1,301
+            ;检查房间是否存在这个种类
+            CALL CHECK_ROOM_TYPE_EXIST, COUNT2
+            SIF RESULT < 0
+                CONTINUE
+            RESULT = 0
+            TRYCALLFORM ROOM_RANK_{COUNT2}
+            IF RESULT == (6 - COUNT1)
+                CHECK_FLAG = 0
+                IF FLAG_FUSION == 1
+                    VARSET RESULT
+                    TRYCALLFORM ROOM_FUSION_FUNCTION_{COUNT2}
+                    CHECK_FLAG = RESULT
+                ELSE
+                    CHECK_FLAG = 1
+                ENDIF
+                IF CHECK_FLAG > 0
+                    TRYCALLFORM ROOM_NAME_{COUNT2}
+                    CATALOG:(ROOM_NO+1) = [{ROOM_NO + 1}]%TEXT_RETURN:0%
+                    CATALOG_NO:(ROOM_NO+1) = COUNT2
+                    ROOM_NO = ROOM_NO + 1
+                ENDIF
+            ENDIF
+        NEXT
+    NEXT
+ENDIF 
+
+;记录搜索到的房间个数
+CATALOG:0 = ROOM_NO
+MAX_PAPER = ROOM_NO / 40
+;计数 如果超过40个那么停止 剩余的在下一页
+COUNT2 = 0
+FOR COUNT1,MAX(1,PAPER_NO*40 + 1), MIN(ROOM_NO + 1,PAPER_NO*40 + 41)
+    PRINTFORM %TEXT_LJ(CATALOG:COUNT1, 22)%
+    COUNT2 = COUNT2 + 1
+    IF COUNT2 % 4 == 0
+        PRINTL
+    ENDIF
+NEXT
+
+PRINTL
+PRINTL
+
+IF FLAG_RANK != 0
+    CALL PRINT_BUTTON_17,"番号に並び替え",500,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"番号に並び替え",500,0
+    RESETCOLOR
+ENDIF
+IF FLAG_RANK != 1
+    CALL PRINT_BUTTON_17,"RANKの降順に並び替え",501,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"RANKの降順に並び替え",501,0
+    RESETCOLOR
+ENDIF
+IF FLAG_RANK != 2
+    CALL PRINT_BUTTON_17,"RANKの昇順に並び替え",502,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"RANKの昇順に並び替え",502,0
+    RESETCOLOR
+ENDIF
+IF FLAG_FUSION != 1
+    CALL PRINT_BUTTON_17,"融合",503,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"融合",503,1
+    RESETCOLOR
+ENDIF
+PRINTL
+DRAWLINE
+PRINTL
+PRINTL
+CALL PRINT_BUTTON_17,"戻る",999,1
+
+IF PAPER_NO > 0 
+    CALL PRINT_BUTTON_17,"前のページ",600,1
+ELSE
+    CALL PRINT_BUTTON_17,"前のページ",600,0
+ENDIF
+
+IF PAPER_NO < MAX_PAPER
+    CALL PRINT_BUTTON_17,"次のページ",601,1
+ELSE
+    CALL PRINT_BUTTON_17,"次のページ",601,0
+ENDIF
+
+
+INPUT
+SELECTCASE RESULT
+    CASE 0 TO ROOM_NO + 1
+        CALL PRINT_ROOM, CATALOG_NO:RESULT,1,-1,-1
+
+    CASE 500
+        FLAG_RANK = 0
+
+    CASE 501
+        FLAG_RANK = 1
+
+    CASE 502
+        FLAG_RANK = 2
+    
+    CASE 503
+        FLAG_FUSION = (FLAG_FUSION + 1) % 2
+
+    CASE 600
+        PAPER_NO = PAPER_NO - 1
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO CATALOG_BEGIN
+    
+    CASE 601
+        PAPER_NO = PAPER_NO + 1
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO CATALOG_BEGIN
+
+    CASE 999
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        RETURN 
+ENDSELECT
+
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+GOTO CATALOG_BEGIN
+
+
+;---------------------------
+;怪物目录
+;需要添加搜索排序方法
+;计划按照星级 和 序号顺序进行排序
+;魔王并不会出现在怪物目录中
+;---------------------------
+@SUCCUBUS_CATALOG
+#DIM MEMO_LINECOUNT
+#DIM COUNT1
+#DIM COUNT2
+;判断是否是只显示合成怪物
+#DIM FLAG_FUSION
+;判断排序方式
+;0为默认序号 1为按照星级顺序 2为按照星级倒序
+#DIM FLAG_RANK
+#DIM CHECK_FLAG
+#DIM SUCCUBUS_NO
+#DIM CATALOG_NO,300
+#DIMS CATALOG,300
+#DIM PAPER_NO
+#DIM MAX_PAPER
+#DIM CHOICE
+#DIM NEW_SUCCUBUS_NO
+
+FLAG_FUSION = 0
+FLAG_RANK = 0
+MEMO_LINECOUNT = LINECOUNT
+PAPER_NO = 0
+
+$CATALOG_BEGIN
+PRINTL
+CALL DRAWLINES_CENTER_DIY,"~モンスター図鑑~","-"
+PRINTL
+SUCCUBUS_NO = 0
+VARSET CATALOG
+VARSET CATALOG_NO
+
+;按照默认序号
+IF FLAG_RANK == 0
+    FOR COUNT1,1,301
+        ;检查魔物是否存在这个种类
+        CALL CHECK_SUCCUBUS_TYPE_EXIST, COUNT1
+
+        SIF RESULT < 0
+            CONTINUE
+        CHECK_FLAG = 0
+        IF FLAG_FUSION == 1
+            VARSET RESULT,0
+            TRYCALLFORM SUCCUBUS_FUSION_FUNCTION_{COUNT1}
+            CHECK_FLAG = RESULT:0
+        ELSE
+            CHECK_FLAG = 1
+        ENDIF
+        IF CHECK_FLAG > 0
+            TRYCALLFORM SUCCUBUS_NAME_{COUNT1},0
+            IF SUCCUBUS_GOT:COUNT1 == 1
+                CATALOG:(SUCCUBUS_NO+1) = [{SUCCUBUS_NO + 1}]%TEXT_RETURN:0%
+                CATALOG_NO:(SUCCUBUS_NO+1) = COUNT1
+            ELSE
+                CATALOG:(SUCCUBUS_NO+1) = [-]???
+                CATALOG_NO:(SUCCUBUS_NO+1) = 0
+            ENDIF
+            SUCCUBUS_NO = SUCCUBUS_NO + 1
+        ENDIF
+    NEXT
+;按照星级顺序
+ELSEIF FLAG_RANK == 1
+    FOR COUNT1,1,6
+        FOR COUNT2,1,301
+            ;检查魔物是否存在这个种类
+            CALL CHECK_SUCCUBUS_TYPE_EXIST, COUNT2
+            SIF RESULT < 0
+                CONTINUE
+            LOCAL = 0
+            RESULT = 0
+            TRYCALLFORM SUCCUBUS_STAR_{COUNT2}
+            LOCAL = RESULT
+            IF LOCAL == 0
+                CONTINUE
+            ENDIF
+            IF LOCAL == COUNT1
+                CHECK_FLAG = 0
+                IF FLAG_FUSION == 1
+                    VARSET RESULT,0
+                    TRYCALLFORM SUCCUBUS_FUSION_FUNCTION_{COUNT2}
+                    CHECK_FLAG = RESULT:0
+                ELSE
+                    CHECK_FLAG = 1
+                ENDIF
+                IF CHECK_FLAG > 0
+                    TRYCALLFORM SUCCUBUS_NAME_{COUNT2},0
+                    IF SUCCUBUS_GOT:COUNT2 == 1
+                        CATALOG:(SUCCUBUS_NO+1) = [{SUCCUBUS_NO + 1}]%TEXT_RETURN:0%
+                        CATALOG_NO:(SUCCUBUS_NO+1) = COUNT2
+                    ELSE
+                        CATALOG:(SUCCUBUS_NO+1) = [-]???
+                        CATALOG_NO:(SUCCUBUS_NO+1) = 0
+                    ENDIF
+                    SUCCUBUS_NO = SUCCUBUS_NO + 1
+                ENDIF
+            ENDIF
+        NEXT
+    NEXT
+;按照星级倒序
+ELSEIF FLAG_RANK == 2
+    FOR COUNT1,1,6
+        FOR COUNT2,1,301
+            ;检查魔物是否存在这个种类
+            CALL CHECK_SUCCUBUS_TYPE_EXIST, COUNT2
+            SIF RESULT < 0
+                CONTINUE
+            RESULT = 0
+            TRYCALLFORM SUCCUBUS_STAR_{COUNT2}
+            IF RESULT == (6 - COUNT1)
+                CHECK_FLAG = 0
+                IF FLAG_FUSION == 1
+                    VARSET RESULT,0
+                    TRYCALLFORM SUCCUBUS_FUSION_FUNCTION_{COUNT2}
+                    CHECK_FLAG = RESULT:0
+                ELSE
+                    CHECK_FLAG = 1
+                ENDIF
+                IF CHECK_FLAG > 0
+                    TRYCALLFORM SUCCUBUS_NAME_{COUNT2},0
+                    IF SUCCUBUS_GOT:COUNT2 == 1
+                        CATALOG:(SUCCUBUS_NO+1) = [{SUCCUBUS_NO + 1}]%TEXT_RETURN:0%
+                        CATALOG_NO:(SUCCUBUS_NO+1) = COUNT2
+                    ELSE
+                        CATALOG:(SUCCUBUS_NO+1) = [-]???
+                        CATALOG_NO:(SUCCUBUS_NO+1) = 0
+                    ENDIF
+                    SUCCUBUS_NO = SUCCUBUS_NO + 1
+                ENDIF
+            ENDIF
+        NEXT
+    NEXT
+ENDIF 
+
+;记录搜索到的魔物个数
+CATALOG:0 = SUCCUBUS_NO
+MAX_PAPER = SUCCUBUS_NO / 40
+;计数 如果超过40个那么停止 剩余的在下一页
+COUNT2 = 0
+FOR COUNT1,MAX(1,PAPER_NO*40 + 1), MIN(SUCCUBUS_NO + 1,PAPER_NO*40 + 41)
+    PRINTFORM %TEXT_LJ(CATALOG:COUNT1, 22)%
+    COUNT2 = COUNT2 + 1
+    IF COUNT2 % 4 == 0
+        PRINTL
+    ENDIF
+NEXT
+
+PRINTL
+PRINTL
+IF FLAG_RANK != 0
+    CALL PRINT_BUTTON_17,"番号に並び替え",500,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"番号に並び替え",500,0
+    RESETCOLOR
+ENDIF
+IF FLAG_RANK != 1
+    CALL PRINT_BUTTON_17,"RANKの降順に並び替え",501,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"RANKの降順に並び替え",501,0
+    RESETCOLOR
+ENDIF
+IF FLAG_RANK != 2
+    CALL PRINT_BUTTON_17,"RANKの昇順に並び替え",502,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"RANKの昇順に並び替え",502,0
+    RESETCOLOR
+ENDIF
+IF FLAG_FUSION != 1
+    CALL PRINT_BUTTON_17,"融合",503,1
+ELSE
+    SETCOLOR DEF_COLOR("蓝色")
+    CALL PRINT_BUTTON_17,"融合",503,1
+    RESETCOLOR
+ENDIF
+PRINTL
+DRAWLINE
+PRINTL
+PRINTL
+CALL PRINT_BUTTON_17,"戻る",999,1
+
+IF PAPER_NO > 0 
+    CALL PRINT_BUTTON_17,"前のページ",600,1
+ELSE
+    CALL PRINT_BUTTON_17,"前のページ",600,0
+ENDIF
+
+IF PAPER_NO < MAX_PAPER
+    CALL PRINT_BUTTON_17,"次のページ",601,1
+ELSE
+    CALL PRINT_BUTTON_17,"次のページ",601,0
+ENDIF
+
+
+INPUT
+CHOICE = RESULT
+SELECTCASE CHOICE
+    CASE 0 TO SUCCUBUS_NO + 1
+        ;临时生成一个1级的对应的怪物
+        CALL ADD_SUCCUBUS_CHARA, CATALOG_NO:CHOICE, 1
+        NEW_SUCCUBUS_NO = RESULT
+        CALL PRINT_CHARA, NEW_SUCCUBUS_NO, 1
+        CALL DEL_SUCCUBUS_CHARA , NEW_SUCCUBUS_NO
+    CASE 500
+        FLAG_RANK = 0
+
+    CASE 501
+        FLAG_RANK = 1
+
+    CASE 502
+        FLAG_RANK = 2
+
+    CASE 503
+        FLAG_FUSION = (FLAG_FUSION + 1) % 2
+
+    CASE 600
+        PAPER_NO = PAPER_NO - 1
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO CATALOG_BEGIN
+    
+    CASE 601
+        PAPER_NO = PAPER_NO + 1
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO CATALOG_BEGIN
+
+    CASE 999
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        RETURN 
+ENDSELECT
+
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+GOTO CATALOG_BEGIN

@@ -1,0 +1,14 @@
+﻿;-------------------------------------------------
+;物品商店
+;-------------------------------------------------
+@EVENT_SHOP, ARG
+#DIM LCOUNT
+
+SELECTCASE ARG
+CASE 1
+	CALL EVENT_H_SHOP
+CASE 2
+	CALL EVENT_F_SHOP
+CASE 3
+	CALL EVENT_C_SHOP
+ENDSELECT

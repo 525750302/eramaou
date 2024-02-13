@@ -1,0 +1,65 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;破れ为双方都有的状态属性。受到的伤害增加50%，最后结算。每10点破れ增加10%受到的额外伤害。每次发动数值减少一半。
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_63, ARG
+SIF ARG <= 0
+    RETURN
+LOCAL = ENEMY_STATE:ARG:63
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_63, ARG
+SIF ARG<0
+    RETURN 
+LOCAL = CFLAG:ARG:63
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_63, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+ENEMY_STATE:ARG:63 += ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_63, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+CFLAG:ARG:63 += ARG:1
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;ARG为目标的编号 ARG:1为伤害数值
+;受到的伤害增加50%，最后结算。每10点破れ增加10%受到的额外伤害。每次发动数值减少一半。
+@DECREASE_ENEMY_STATE_63, ARG, ARG:1
+#DIM ADDTIONAL_DAMEGE
+SIF ARG <= 0
+    RETURN
+ADDTIONAL_DAMEGE = ENEMY_STATE:ARG:63 / 10
+ARG:1 = ARG:1 * (20 + ADDTIONAL_DAMEGE) / 10
+ENEMY_STATE:ARG:63 -= MAX(1,ENEMY_STATE:ARG:63/2)
+ENEMY_STATE:ARG:63 = MAX(0,ENEMY_STATE:ARG:63)
+RETURN ARG:1
+
+@DECREASE_SUCCUBUS_STATE_63, ARG, ARG:1
+#DIM ADDTIONAL_DAMEGE
+SIF ARG < 0
+    RETURN
+ADDTIONAL_DAMEGE = CFLAG:ARG:63 / 10
+ARG:1 = ARG:1 * (20 + ADDTIONAL_DAMEGE) / 10
+CFLAG:ARG:63 -= MAX(1,CFLAG:ARG:63/2)
+CFLAG:ARG:63 = MAX(0,CFLAG:ARG:63)
+RETURN ARG:1
+

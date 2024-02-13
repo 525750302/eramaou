@@ -1,0 +1,1438 @@
+﻿
+;-------------------------------------------------
+;@INPUT_SELECTのONEINPUT版
+;ARGには一桁の数字を入れること
+;-------------------------------------------------
+@ONEINPUT_SELECT, ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8, ARG:9, ARG:10
+#DIM MEMO_LINECOUNT
+MEMO_LINECOUNT = LINECOUNT
+
+ONEINPUT
+SELECTCASE RESULT
+CASE 0 TO ARG - 1, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8, ARG:9, ARG:10
+	RETURN RESULT
+ENDSELECT
+
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+RESTART
+;-------------------------------------------------
+;@PRINT_SELECTのHTML版
+;		※要修正 (ぶっちゃけHTMLそのまま書いたほうが分かりやすいのでは？:thinking:)
+;			文字列データを流用したい場合はちょっとなぁ
+;			文字列途中で色々弄るの辞めて、無印と同じく末尾に一括記載でも良さそうだけども...
+;			いや、意味ないか...多分頭良い人がちょっと捻れば行ける
+;			(たとえばERH使ってButtonTextを取り出せるようにするとかね)
+;			
+;			私は好きにした、君らも好きにしろ
+;
+;コマンド一覧
+;_NOBUTTON：ボタンではなくなります
+;_太字				：太字になります
+;_太字解除			：太字を解除します
+;_斜体				：斜体になります
+;_斜体解除			：斜体を解除します
+;_下線				：アンダーラインを引きます
+;_下線解除			：アンダーラインを解除します
+;_取り消し			：取り消し線を引きます
+;_選択不可			：ボタンを選択不可にします(NOBUTTONと異なり　[XX] 押せないボタン　みたいな表示が出来ます)
+;_黄色：表示色を黄色に変更します
+;_赤色：表示色を赤色に変更します
+;_灰色：表示色を灰色に変更します
+;-------------------------------------------------
+@PRINT_SELECT_EX, ARGS, ARGS:1
+#DIM ButtonCount
+#DIM TagCount
+#DIM NumSelect
+#DIMS Memos, 100
+
+#DIM IsBold
+#DIM IsItalic
+#DIM IsUnderLine
+#DIM IsStrikethrough
+;0でボタン 1で選択不可ボタン 2でテキスト
+#DIM IsTextType
+#DIMS ButtonText
+#DIMS OutPutHTML
+#DIMS NowColor
+
+VARSET LOCALS
+SPLIT ARGS, "/", LOCALS
+
+NumSelect = 0
+FOR ButtonCount, 0, 99
+	SIF LOCALS:ButtonCount == ""
+		BREAK
+
+	;#region 初期化
+		IsBold = 0
+		IsItalic = 0
+		IsUnderLine = 0
+		IsStrikethrough = 0
+
+		IsTextType = 0
+
+		ButtonText = 
+		OutPutHTML = 
+		NowColor = 
+	;#endregion
+
+	VARSET Memos
+	SPLIT LOCALS:ButtonCount, "_", Memos
+
+	FOR TagCount, 0, 100
+		SELECTCASE Memos:TagCount
+		CASE "太字"
+			OutPutHTML += "<b>"
+		CASE "太字解除"
+			OutPutHTML += "</b>"
+		CASE "斜体"
+			OutPutHTML += "<i>"
+		CASE "斜体解除"
+			OutPutHTML += "</i>"
+		CASE "取り消し"
+			OutPutHTML += "<s>"
+		CASE "取り消し解除"
+			OutPutHTML += "</s>"
+		CASE "下線"
+			OutPutHTML += "<u>"
+		CASE "下線解除"
+			OutPutHTML += "</u>"
+		
+		CASE "黄色"
+			OutPutHTML += "<font color = 'Yellow'>"
+		CASE "赤"
+			OutPutHTML += "<font color = 'Red'>"
+		CASE "灰色"
+			OutPutHTML += "<font color = 'Gray'>"
+		CASE "色変更解除"
+			OutPutHTML += "</font>"
+
+
+		CASE "選択不可"
+			IsTextType = 1
+		CASE "NOBUTTON"
+			IsTextType = 2
+		CASEELSE
+			OutPutHTML += Memos:TagCount
+			ButtonText += Memos:TagCount
+		ENDSELECT
+	NEXT
+
+	IF IsTextType == 2
+		HTML_PRINT @"<nonbutton>%OutPutHTML%</nonbutton>"
+	ELSEIF IsTextType == 1
+		HTML_PRINT @"<nonbutton>[{ButtonCount,2}]%OutPutHTML%</nonbutton>"
+	ELSE 
+		HTML_PRINT @"<button value = '{ButtonCount}'>[{ButtonCount,2}]%OutPutHTML%</button>"
+	ENDIF
+	;選択肢の数
+	NumSelect += 1
+NEXT
+
+SELECTCASE ARGS:1
+CASE ""
+	CALL INPUT_SELECT, NumSelect
+CASEELSE
+	PRINTFORML  [99] %ARGS:1%
+	CALL INPUT_SELECT, NumSelect, 99
+ENDSELECT
+;PRINTFORMW デバッグメッセージ！ RESULT = {RESULT}
+RETURN RESULT
+
+;-------------------------------------------------
+;左端にARGSを出力させるDRAWLINE
+;ARGS:1に文字列を入れると、ARGS部分をARGS:1を返すスイッチにします
+;-------------------------------------------------
+@DRAWLINES, ARGS, ARGS:1
+LOCALS = %ARGS%
+IF ARGS:1 != ""
+	PRINTBUTTON LOCALS, ARGS:1
+ELSE
+	PRINTFORM %LOCALS%
+ENDIF
+FOR LOCAL, 0, NUM("折り返し文字数") - STRLENS(ARGS)
+	PRINTFORM -
+NEXT
+;自動改行
+PRINTL 
+
+@DRAWLINES_CENTER, ARGS
+#DIM LCOUNT
+FOR LCOUNT, 0, (NUM("折り返し文字数") - STRLENS(ARGS) )/2
+	PRINTFORM -
+NEXT
+PRINTFORM %ARGS%
+FOR LCOUNT, 0, (NUM("折り返し文字数") - STRLENS(ARGS) )/2
+	PRINTFORM -
+NEXT
+;自動改行
+PRINTL 
+
+;-------------------------------------------------
+;複数指定のSETBIT、CLEARBIT, INVERTBIT
+;ただし、ARG:1～ARG:2までのbit全てと、ARG:3, ARG:4, …の単体のbitに作用する
+;そして、0bitを操作できるのはARG:1のみである
+;例1）LOCAL = SETBITS(LOCAL, 0, 5, 7)でLOCALの0～5bitと7bitがONになる
+;例2）LOCAL = SETBITS(LOCAL, 1, 5, 0)だとLOCALの1～5bitがONになる。0bitは変化しない
+;例3）LOCAL = SETBITS(LOCAL, 2)はSETBIT LOCAL, 2 と等しい
+;-------------------------------------------------
+@SETBITS(ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7)
+#FUNCTION
+FOR LOCAL, ARG:1, MAX(ARG:1, ARG:2)+1
+	SETBIT ARG, LOCAL
+NEXT
+FOR LOCAL, 3, 8
+	SIF ARG:LOCAL
+		SETBIT ARG, ARG:LOCAL
+NEXT
+RETURNF ARG
+
+@CLEARBITS(ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7)
+#FUNCTION
+FOR LOCAL, ARG:1, MAX(ARG:1, ARG:2)+1
+	CLEARBIT ARG, LOCAL
+NEXT
+FOR LOCAL, 3, 8
+	SIF ARG:LOCAL
+		CLEARBIT ARG, ARG:LOCAL
+NEXT
+RETURNF ARG
+
+@INVERTBITS(ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7)
+#FUNCTION
+FOR LOCAL, ARG:1, MAX(ARG:1, ARG:2)+1
+	INVERTBIT ARG, LOCAL
+NEXT
+FOR LOCAL, 3, 8
+	SIF ARG:LOCAL
+		INVERTBIT ARG, ARG:LOCAL
+NEXT
+RETURNF ARG
+
+;-------------------------------------------------
+;複数指定のGETBIT
+;ただし、ARG:1～ARG:2までのbit全てと、ARG:3, ARG:4, …の単体のbitに作用する
+;そして、0bitを参照できるのはARG:1のみである
+;例1）GETBITS(LOCAL, 0, 5, 7)でLOCALの0～5bitと7bitの和を返す
+;例2）GETBITS(LOCAL, 1, 5, 0)orGETBITS(LOCAL, 1, 5)だとLOCALの1～5bitの和を返す
+;具体的にはLOCAL = 2+8+32 ならGETBITS(LOCAL, 2, 4) = 8となる
+;実例）GETBITS(LOCAL, 2)は大体GETBIT(LOCAL, 2) と等しい用途に用いることが出来る
+;-------------------------------------------------
+@GETBITS(ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7)
+#FUNCTION
+#DIM LCOUNT
+VARSET LOCAL
+FOR LCOUNT, ARG:1, MAX(ARG:1, ARG:2)+1
+	SIF GETBIT(ARG, LCOUNT)
+		LOCAL += POWER(2, LCOUNT)
+NEXT
+FOR LCOUNT, 3, 8
+	SIF ARG:LCOUNT == 0
+		CONTINUE
+	SIF GETBIT(ARG, ARG:LCOUNT)
+		LOCAL += POWER(2, ARG:LCOUNT)
+NEXT
+RETURNF LOCAL
+
+;-------------------------------------------------
+;複数指定のSTRCOUNT
+;-------------------------------------------------
+@STRCOUNTS(ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9)
+#FUNCTION
+#DIM LCOUNT
+
+LOCAL = 0
+
+FOR LCOUNT, 1, 10
+	SIF ARGS:LCOUNT == ""
+		BREAK
+	LOCAL += STRCOUNT(ARGS, ARGS:LCOUNT)
+NEXT
+RETURNF LOCAL
+
+;-------------------------------------------------
+;文字列ARGSの、文字ARGS:2とARGS:3に挟まれた部分に文字列ARGS:1を挿入する。
+;当然だがARGS:2とARGS:3が空文字ではならない。
+;ARGS:2が複数登場する場合はバグります。注意。
+;-------------------------------------------------
+@INSERT_STR(ARGS, ARGS:1, ARGS:2, ARGS:3)
+#FUNCTIONS
+;左側の文字列
+#DIMS LSTR
+;右側の文字列
+#DIMS RSTR
+#DIM LCOUNT
+
+VARSET LOCALS
+SPLIT ARGS, ARGS:2, LOCALS
+;ARGSにARGS:2が含まれていない場合は何もしない
+SIF LOCALS:1 == ""
+	RETURNF ARGS
+
+LSTR = %LOCALS%%ARGS:2%
+RSTR = %SUBSTRING(ARGS, STRLENS(LSTR), -1)%
+
+SELECTCASE RSTR
+CASE ARGS:3
+CASEELSE
+	VARSET LOCALS
+	SPLIT RSTR, ARGS:3, LOCALS
+	;RSTRをLOCALS:0を除いて再構築
+	RSTR = %SUBSTRING(RSTR, STRLENS(LOCALS), -1)%
+ENDSELECT
+
+RETURNF @"%LSTR%%ARGS:1%%RSTR%"
+
+;-------------------------------------------------
+;ARGSから、文字ARGS:1とARGS:2に挟まれた部分を抜き出す
+;ARGS:1やARGS:2で分割した際に、２分割になるものだけに使うと間違いがないだろう
+;複数分割にされる場合には、文字列の中でARGS:1とARGS:2に挟まれた"一番左の文字列"を返す
+;ちなみにARGS:2 == "" の場合にはARGS:1の右側だけを返し、
+;ARGS:1 == "" の場合にはARGS:2の左側だけを返す
+;-------------------------------------------------
+@EXTSTR(ARGS, ARGS:1, ARGS:2)
+#FUNCTIONS
+
+VARSET LOCALS
+SPLIT ARGS, ARGS:1, LOCALS
+IF LOCALS:1 != ""
+	ARGS = %LOCALS:1%
+ELSEIF ARGS:2 == ""
+	RETURNF ""
+ELSE
+	ARGS = %LOCALS%
+ENDIF
+
+VARSET LOCALS
+SPLIT ARGS, ARGS:2, LOCALS
+
+RETURNF LOCALS
+
+;-------------------------------------------------
+;EXTSTRの空白を無視する版
+;-------------------------------------------------
+@EXTSTR_BL(ARGS, ARGS:1, ARGS:2)
+#FUNCTIONS
+#DIM LCOUNT
+
+ARGS = %EXTSTR(ARGS, ARGS:1, ARGS:2)%
+VARSET LOCALS
+SPLIT ARGS, " ", LOCALS
+ARGS = 
+FOR LCOUNT, 0, 100
+	ARGS += @"%LOCALS:LCOUNT%"
+NEXT
+RETURNF ARGS
+
+;-------------------------------------------------
+;TOINTの空白を無視する版
+;-------------------------------------------------
+@TOINT_BL(ARGS)
+#FUNCTION
+#DIM LCOUNT
+
+VARSET LOCALS
+SPLIT ARGS, " ", LOCALS
+ARGS = 
+FOR LCOUNT, 0, 100
+	ARGS += @"%LOCALS:LCOUNT%"
+NEXT
+RETURNF TOINT(ARGS)
+
+;-------------------------------------------------
+;ARGS == TOSTR(DAY*10 + TIME) を X年Y日 季節 曜日（昼or夜） に直す
+;-------------------------------------------------
+@TO_DATE(ARGS)
+#FUNCTIONS
+#DIM MEMO_FLAGYEAR
+#DIM MEMO_FLAGSEASON
+#DIM MEMO_FLAGDAY
+#DIM MEMO_DAY
+#DIM MEMO_TIME
+
+MEMO_FLAGYEAR = FLAG:年
+MEMO_FLAGSEASON = FLAG:季節
+MEMO_FLAGDAY = FLAG:日
+MEMO_DAY = DAY
+MEMO_TIME = TIME
+
+DAY = TOINT(ARGS)/10
+TIME = TOINT(ARGS)%10
+
+;CALL SETFLAG, "年月日"と同じ操作
+FLAG:日 = (DAY - 1)%NUM("１年の長さ") + 1
+FLAG:年 = (DAY + NUM("１年の長さ") - 1)/NUM("１年の長さ")
+FLAG:季節 = (FLAG:日 - 1)/7
+LOCALS = %TEXTS("日期表示")%
+
+FLAG:年 = MEMO_FLAGYEAR
+FLAG:季節 = MEMO_FLAGSEASON
+FLAG:日 = MEMO_FLAGDAY
+DAY = MEMO_DAY
+TIME = MEMO_TIME
+
+RETURNF LOCALS
+;-------------------------------------------------
+;/で区切られた要素でなる文字列ARGS中にARGS:1, ARGS:2, …が計何個あるかを返す関数
+;-------------------------------------------------
+@NUM_STR(ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7)
+#FUNCTION
+#DIM LCOUNT
+
+VARSET LOCALS
+;それぞれの要素に分解
+SPLIT ARGS, "/", LOCALS
+
+LOCAL = 0
+
+;LOCALSはLOCALS:0～LOCALS:99まで
+FOR LCOUNT, 0, 100
+	SIF LOCALS:LCOUNT == ""
+		RETURNF LOCAL
+
+	SELECTCASE LOCALS:LCOUNT
+	CASE ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7
+		LOCAL += 1
+	ENDSELECT
+NEXT
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;/で区切られた数字の要素でなる文字列ARGS中の最大の数値を返す関数
+;-------------------------------------------------
+@MAX_STR(ARGS)
+#FUNCTION
+#DIM LCOUNT
+
+VARSET LOCALS
+;それぞれの要素に分解
+SPLIT ARGS, "/", LOCALS
+
+;左端の要素の数値を初期値とする
+LOCAL = TOINT(LOCALS:0)
+
+;LOCALSはLOCALS:0～LOCALS:99まで
+FOR LCOUNT, 1, 100
+	SIF LOCALS:LCOUNT == ""
+		RETURNF LOCAL
+
+	;文字列を数字化して比較
+	SIF TOINT(LOCALS:LCOUNT) > LOCAL
+		LOCAL = TOINT(LOCALS:LCOUNT)
+NEXT
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;/で区切られた数字の要素でなる文字列ARGS中の最小の数値を返す関数
+;-------------------------------------------------
+@MIN_STR(ARGS)
+#FUNCTION
+#DIM LCOUNT
+
+VARSET LOCALS
+;それぞれの要素に分解
+SPLIT ARGS, "/", LOCALS
+
+;左端の要素の数値を初期値とする
+LOCAL = TOINT(LOCALS:0)
+
+;LOCALSはLOCALS:0～LOCALS:99まで
+FOR LCOUNT, 1, 100
+	SIF LOCALS:LCOUNT == ""
+		RETURNF LOCAL
+
+	;文字列を数字化して比較
+	SIF TOINT(LOCALS:LCOUNT) < LOCAL
+		LOCAL = TOINT(LOCALS:LCOUNT)
+NEXT
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;/で区切られた数字の要素でなる文字列ARGS中の数値の総和を返す関数
+;-------------------------------------------------
+@SUM_STR(ARGS)
+#FUNCTION
+#DIM LCOUNT
+
+VARSET LOCALS
+;それぞれの要素に分解
+SPLIT ARGS, "/", LOCALS
+
+LOCAL = 0
+
+;LOCALSはLOCALS:0～LOCALS:99まで
+FOR LCOUNT, 0, 100
+	SIF LOCALS:LCOUNT == ""
+		RETURNF LOCAL
+
+	;文字列を数字化して足していく
+	LOCAL += TOINT(LOCALS:LCOUNT)
+NEXT
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;/で区切られた数字の要素でなる文字列ARGS中の各要素に整数ARGを足す関数
+;数値を減らしたい時にはARGに負の整数を代入する
+;-------------------------------------------------
+@ADDNUM_STR(ARGS, ARG)
+#FUNCTIONS
+#DIM LCOUNT
+
+VARSET LOCALS
+;それぞれの要素に分解
+SPLIT ARGS, "/", LOCALS
+
+LOCALS = {TOINT(LOCALS) + ARG}/
+
+;LOCALSはLOCALS:0～LOCALS:99まで
+FOR LCOUNT, 1, 100
+	SIF LOCALS:LCOUNT == ""
+		RETURNF LOCALS
+
+	;文字列を数字化して足していく
+	LOCALS = %LOCALS%{TOINT(LOCALS:LCOUNT) + ARG}/
+NEXT
+
+RETURNF LOCALS
+;-------------------------------------------------
+;主に現実の日付を参照するイベント全般の判定をする
+;ARGS:1には"リアル日時"、"ゲーム内"などが代入される
+;-------------------------------------------------
+@DAYEV(ARGS, ARGS:1)
+#FUNCTION
+
+;現実の年
+#DIM RYEAR
+;現実の日付時刻
+#DIM MONTH_DAY
+;現実の日(曜日計算でのみ使用)
+#DIM RDAY
+;現実の時刻
+#DIM RTIME
+;現実の曜日
+#DIM WEEKDAY
+
+
+GETTIME
+
+RYEAR = (RESULT / 10000000000000) % 10000
+;現実の日付時刻が02/05の4時ならMONTH_DAY = 20504
+MONTH_DAY = (RESULT / 10000000) % 1000000
+;現実の日
+RDAY = (RESULT / 1000000000) % 100
+;現実の時間0～23
+RTIME = MONTH_DAY%100
+
+;曜日の算出（1-2月の時は計算式が別）
+SELECTCASE MONTH_DAY/10000
+CASE 1, 2
+	WEEKDAY = (RYEAR - 1 + (RYEAR - 1)/4 - (RYEAR - 1)/100 + (RYEAR - 1)/400 + (13*(MONTH_DAY/10000 + 12) + 8)/5 + RDAY)%7
+CASEELSE
+	WEEKDAY = (RYEAR + RYEAR/4 - RYEAR/100 + RYEAR/400 + (13*MONTH_DAY/10000 + 8)/5 + RDAY)%7
+ENDSELECT
+
+
+;それぞれのイベント日は翌日の深夜まではＯＫとする
+SELECTCASE ARGS
+;日付イベント
+CASE "大晦日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 123100 && MONTH_DAY <= 10103
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 49
+			RETURNF 1
+	ENDSELECT
+CASE "新年"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 10100 && MONTH_DAY <= 10203
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 50
+			RETURNF 1
+	ENDSELECT
+CASE "情人節前日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 21300 && MONTH_DAY <= 21323
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 53
+			RETURNF 1
+	ENDSELECT
+CASE "情人節"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 21400 && MONTH_DAY <= 21503
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 54
+			RETURNF 1
+	ENDSELECT
+CASE "情人節翌日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 21504 && MONTH_DAY <= 21603
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 55
+			RETURNF 1
+	ENDSELECT
+CASE "白色情人節"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 31400 && MONTH_DAY <= 31503
+			RETURNF 1
+	CASEELSE
+		;１年目は無し
+		SIF FLAG:年 < 2
+			RETURNF 0
+		SIF FLAG:日 == 3
+			RETURNF 1
+	ENDSELECT
+;初夏初日
+CASE "夏服開始"
+	SIF TEXTS("季節詳細") != "初夏"
+		RETURNF 0
+	FLAG:日 -= 1
+	IF TEXTS("季節詳細") != "初夏"
+		FLAG:日 += 1
+		RETURNF 1
+	ELSE
+		FLAG:日 += 1
+		RETURNF 0
+	ENDIF
+CASE "夏服期間"
+	SELECTCASE TEXTS("季節詳細")
+	CASE "初夏", "夏", "初秋", "秋"
+		RETURNF 1
+	ENDSELECT
+;晩秋初日
+CASE "夏服終了"
+	SIF TEXTS("季節詳細") != "晩秋"
+		RETURNF 0
+	FLAG:日 -= 1
+	IF TEXTS("季節詳細") != "晩秋"
+		FLAG:日 += 1
+		RETURNF 1
+	ELSE
+		FLAG:日 += 1
+		RETURNF 0
+	ENDIF
+CASE "女仆の日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 51000 && MONTH_DAY <= 51103
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 13
+			RETURNF 1
+	ENDSELECT
+CASE "比基尼の日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 70500 && MONTH_DAY <= 70603
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 20
+			RETURNF 1
+	ENDSELECT
+CASE "海の日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 71600 && MONTH_DAY <= 71703
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 22
+			RETURNF 1
+	ENDSELECT
+CASE "兔女郎の日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 82300 && MONTH_DAY <= 82403
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 27
+			RETURNF 1
+	ENDSELECT
+CASE "万圣节"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 103100 && MONTH_DAY <= 110103
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 42
+			RETURNF 1
+	ENDSELECT
+CASE "圣诞节前夕"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 121800 && MONTH_DAY <= 121903
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 >= 45 && FLAG:日 <= 46
+			RETURNF 1
+	ENDSELECT
+CASE "圣诞节"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		;サービスで24と25両方ＯＫ
+		SIF MONTH_DAY >= 122400 && MONTH_DAY <= 122603
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 47
+			RETURNF 1
+	ENDSELECT
+CASE "圣诞节翌日"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 122604 && MONTH_DAY <= 122703
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 == 48
+			RETURNF 1
+	ENDSELECT
+CASE "圣诞节期間"
+	SELECTCASE ARGS:1
+	CASE "リアル日時"
+		SIF MONTH_DAY >= 121800 && MONTH_DAY <= 122703
+			RETURNF 1
+	CASEELSE
+		SIF FLAG:日 >= 45 && FLAG:日 <= 48
+			RETURNF 1
+	ENDSELECT
+
+;時間区分
+CASE "约会领带ム"
+	SIF (DAY - 1)%7 == 0 && TIME == 1
+		RETURNF 1
+CASE "早朝"
+	SIF RTIME >= 4 && RTIME <= 5
+		RETURNF 1
+CASE "朝"
+	SIF RTIME >= 4 && RTIME <= 10
+		RETURNF 1
+CASE "昼"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF TIME == 1
+			RETURNF 1
+	CASEELSE
+		SIF RTIME >= 11 && RTIME <= 14
+			RETURNF 1
+	ENDSELECT
+CASE "午后"
+	SIF RTIME == 13
+		RETURNF 1
+CASE "傍晚"
+	;SELECTCASE ARGS:1
+	;CASE "ゲーム内"
+	;	SIF COND("夕方")
+	;		RETURNF 1
+	;CASEELSE
+		SIF RTIME >= 15 && RTIME <= 18
+			RETURNF 1
+	;ENDSELECT
+CASE "夜"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF TIME == 2
+			RETURNF 1
+	CASEELSE
+		SIF RTIME >= 18 && RTIME <= 23
+			RETURNF 1
+	ENDSELECT
+CASE "深夜"
+	SIF RTIME < 23
+		RTIME += 24
+	SIF RTIME >= 23 && RTIME <= 27
+		RETURNF 1
+
+;季節の詳細
+CASE "春"
+	SIF MONTH_DAY >= 30100 && MONTH_DAY <= 53124
+		RETURNF 1
+
+CASE "初夏"
+	SIF MONTH_DAY >= 51000 && MONTH_DAY <= 60924
+		RETURNF 1
+CASE "夏"
+	SIF MONTH_DAY >= 60100 && MONTH_DAY <= 83124
+		RETURNF 1
+
+CASE "初秋"
+	SIF MONTH_DAY >= 80800 && MONTH_DAY <= 90624
+		RETURNF 1
+CASE "秋"
+	SIF MONTH_DAY >= 90100 && MONTH_DAY <= 113124
+		RETURNF 1
+CASE "晩秋"
+	SIF MONTH_DAY >= 110100 && MONTH_DAY <= 120924
+		RETURNF 1
+
+CASE "冬"
+	SIF MONTH_DAY < 120100
+		RTIME += 120000
+	SIF MONTH_DAY >= 120100 && MONTH_DAY <= 143124
+		RETURNF 1
+
+;曜日判定
+CASE "周日"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 0
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 0
+			RETURNF 1
+	ENDSELECT
+CASE "周一"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 1
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 1
+			RETURNF 1
+	ENDSELECT
+CASE "周二"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 2
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 2
+			RETURNF 1
+	ENDSELECT
+CASE "周三"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 3
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 3
+			RETURNF 1
+	ENDSELECT
+CASE "周四"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 4
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 4
+			RETURNF 1
+	ENDSELECT
+CASE "周五"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 5
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 5
+			RETURNF 1
+	ENDSELECT
+CASE "周六"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 6
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 6
+			RETURNF 1
+	ENDSELECT
+CASE "週末"
+	SELECTCASE ARGS:1
+	CASE "ゲーム内"
+		SIF (DAY - 1)%7 == 0 || (DAY - 1)%7 == 6
+			RETURNF 1
+	CASEELSE
+		SIF WEEKDAY == 0 || WEEKDAY == 6
+			RETURNF 1
+	ENDSELECT
+ENDSELECT
+
+RETURNF 0
+;-------------------------------------------------
+;条件分岐用のRAND
+;ARGには最低分岐数を入れる
+;nを正の整数とすると RANDIF(n, TALENT:強気, ABL:欲望 >= 3) は、
+;RAND:(n + LIMIT(TALENT:強気, 0, 1) + (ABL:欲望 >= 3) ) == 0 に等しい
+;主に、IF TALENT:高慢 && RANDIF(2, TALENT:強気, ABL:欲望 >= 3) 等のように用いる
+;-------------------------------------------------
+@RANDIF(ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8, ARG:9)
+#FUNCTION
+#DIM LCOUNT
+SIF ARG <= 0
+	RETURNF 0
+
+LOCAL = ARG
+FOR LCOUNT, 1, 10
+	SIF ARG:LCOUNT > 0
+		LOCAL += 1
+NEXT
+SIF RAND:LOCAL == 0
+	RETURNF 1
+RETURNF 0
+
+
+;-------------------------------------------------
+;キャラARG:1の識別番号、ゲーム内の日付、時間帯のチェックタイミングによって同じ数値を返すRAND:ARG
+;-------------------------------------------------
+@RANDC(ARG, ARG:1)
+#FUNCTION
+SIF ARG:1 <= 0 && TARGET > 0
+	ARG:1 = TARGET
+SIF ARG <= 0
+	ARG = 3
+RETURNF (BASE:(ARG:1):識別番号%(DAY*10 + TIME) )%ARG
+
+;-------------------------------------------------
+;ゲーム内の日付、時間帯、現実時間のチェックタイミングによって同じ数値を返すRAND
+;FLAG:現実時間 は現実時間に応じて値が変わり、SHOP画面と調教中の１ターンごとに取得します
+;ARG:1に一つ確率に影響の出る変数を入れることが出来るので工夫してください
+;性質上、適当に使うのは非推奨。死に分岐ができるぞ！
+;-------------------------------------------------
+@RANDF(ARG, ARG:1)
+#FUNCTION
+
+SIF ARG <= 1
+	RETURNF 0
+
+;ARG:1を10倍して2乗させるので上限を設ける
+ARG:1 %= 10000000
+
+LOCAL = (POWER(FLAG:現実時間 + (DAY*2 + TIME + ARG:1)*10, 2) / 100) % 1000000000000
+
+RETURNF LOCAL%ARG
+
+@GET_REALTIMEFORFLAG
+FLAG:現実時間 = GETMILLISECOND() % 1000000000
+RANDOMIZE FLAG:現実時間
+
+@RESET_RANDOMIZE
+RANDOMIZE FLAG:現実時間
+;-------------------------------------------------
+;3桁ごとにカンマの入った所持金表示
+;ARG:1には桁を揃える最大値を定めても良い
+;-------------------------------------------------
+@MONEY_C(ARG, ARG:1)
+#FUNCTIONS
+VARSET LOCALS
+FOR LOCAL, 0, 10
+	LOCALS = {ARG%1000}%LOCALS%
+	IF ARG/1000
+		SELECTCASE ARG%1000
+		CASE IS < 10
+			LOCALS = ,00%LOCALS%
+		CASE IS < 100
+			LOCALS = ,0%LOCALS%
+		CASEELSE
+			LOCALS = ,%LOCALS%
+		ENDSELECT
+		ARG /= 1000
+	ELSE
+		BREAK
+	ENDIF
+NEXT
+IF ARG:1
+	FOR LOCAL, 0, 10
+		LOCALS:1 = {ARG:1%1000}%LOCALS:1%
+		IF ARG:1/1000
+			SELECTCASE ARG:1%1000
+			CASE IS < 10
+				LOCALS:1 = ,00%LOCALS:1%
+			CASE IS < 100
+				LOCALS:1 = ,0%LOCALS:1%
+			CASEELSE
+				LOCALS:1 = ,%LOCALS:1%
+			ENDSELECT
+			ARG:1 /= 1000
+		ELSE
+			BREAK
+		ENDIF
+	NEXT
+	LOCALS = %BL(STRLENS(LOCALS:1) - STRLENS(LOCALS))%%LOCALS%
+ENDIF
+LOCALS = \$%LOCALS%
+RETURNF LOCALS
+
+;-------------------------------------------------
+;色々フラグを考慮したDELCHARA
+;キャラ番号ARGのキャラを削除する
+;eramakerの命令DELCHARAと異なりTARGETとASSIを保つ
+;-------------------------------------------------
+@DELETE_CHARA, ARG
+
+DELCHARA ARG
+
+;TARGETとASSIの番号調整
+IF ARG == TARGET
+	TARGET = 0
+ELSEIF ARG < TARGET
+	TARGET -= 1
+ENDIF
+IF ARG == ASSI
+	ASSI = 0
+ELSEIF ARG < ASSI
+	ASSI -= 1
+ENDIF
+;優先順位の整合性をとる
+CALL CHECK_POSITION
+;-------------------------------------------------
+;CSVTALENTの調整版
+;ARGにはキャラの番号、ARG:1には参照したいTALENTの番号を入れる
+;-------------------------------------------------
+@CSVTALENT_EX(ARG, ARG:1)
+#FUNCTION
+
+VARSET LOCAL
+
+SELECTCASE TALENTNAME:(ARG:1)
+;CSV以外で記述する素質
+CASE "外見年齢", "吸精体質"
+	LOCAL = MAX(SET_EXTALENT(TALENTNAME:(ARG:1), ARG), CSVTALENT(NO:ARG, ARG:1) )
+CASEELSE
+	LOCAL = CSVTALENT(NO:ARG, ARG:1)
+ENDSELECT
+
+RETURNF LOCAL
+
+;-------------------------------------------------
+;数値によって変化する素質を加味したTALENTNAME
+;ARGには素質番号、ARG:1にはその値、ARG:2には参照するキャラが代入される
+;-------------------------------------------------
+@TALENT_NAME(ARG, ARG:1, ARG:2)
+#FUNCTIONS
+#DIM LCOUNT
+#DIM ACTOR
+#DIM VALUE
+
+VALUE = ARG:1
+ACTOR = ARG:2
+
+VARSET LOCALS
+LOCALS = %TALENTNAME:ARG%
+SIF ACTOR == 0 && TARGET
+	ACTOR = TARGET
+
+SELECTCASE TALENTNAME:ARG
+CASE "処女"
+	SIF VALUE == 2
+		LOCALS = 処女(再生)
+CASE "性反転"
+	LOCALS = 元%CONDS("本来の性別", ACTOR)%
+CASE "阴茎"
+	SELECTCASE TALENT:ACTOR:阴茎
+	CASE IS >= 5
+		LOCALS = 規格外
+	CASE 4
+		LOCALS = 腕並
+	CASE 3
+		LOCALS = 馬根
+	CASE 2
+		LOCALS = 巨根
+	CASE 1
+		LOCALS = 普通
+	CASE 0
+		LOCALS = 短小
+	ENDSELECT
+	IF COND("真性包茎", ACTOR)
+		LOCALS = %LOCALS%(真性)
+	ELSEIF COND("假性包茎", ACTOR)
+		LOCALS = %LOCALS%(假性)
+	ELSE
+		LOCALS = %LOCALS%(露茎)
+	ENDIF
+	SIF TALENT:ACTOR:具現 && PENIS(ACTOR) == 0
+		LOCALS = 具現：%LOCALS%
+CASE "外見年齢"
+	SELECTCASE VALUE
+	CASE 1
+		IF TALENT:ACTOR:男性
+			LOCALS = 正太
+		ELSE
+			LOCALS = 萝莉
+		ENDIF
+	CASE 2
+		IF TALENT:ACTOR:男性
+			LOCALS = 少年
+		ELSEIF TALENT:ACTOR:娇小 && COND("種族：妖狐", ACTOR)
+			LOCALS = 萝莉老太婆
+		ELSE
+			LOCALS = 少女
+		ENDIF
+	CASE 3
+		IF TALENT:ACTOR:男性
+			LOCALS = 青年
+		ELSE
+			LOCALS = 大姐姐
+		ENDIF
+	CASE 4
+		LOCALS = 大人
+	ENDSELECT
+CASE "容易濕"
+	IF TALENT:ACTOR:男性
+		LOCALS = 前列腺液多
+	ELSE
+		SIF VALUE >= 2
+			LOCALS = 非常容易濕
+	ENDIF
+CASE "不易濕"
+	IF TALENT:ACTOR:男性
+		LOCALS = 前列腺液少
+	ELSE
+
+	ENDIF
+CASE "乳頭肥大", "巨乳輪"
+	SIF VALUE >= 2
+		LOCALS += @"LV{VALUE}"
+CASE "陥没乳頭"
+	IF COND("真性陥没乳頭", ACTOR)
+		LOCALS = 陥没乳頭(真性)
+	ELSEIF COND("假性陥没乳頭", ACTOR)
+		LOCALS = 陥没乳頭(假性)
+	ENDIF
+CASE "陰核"
+	LOCALS = 
+	SIF COND("陰核肥大", ACTOR)
+		LOCALS = %LOCALS%[陰核肥大\@ COND("陰核肥大", ACTOR) >= 2 ? LV{COND("陰核肥大", ACTOR)} # \@]
+	IF COND("陰核露出", ACTOR)
+		LOCALS = %LOCALS%[陰核露出]
+	ELSEIF COND("陰核包茎", ACTOR)
+		LOCALS = %LOCALS%[陰核包茎]
+	ENDIF
+
+	LOCALS = %SUBSTRING(LOCALS, 1, STRLENS(LOCALS) - 2)%
+CASE "ジャストフィット"
+	IF GETBIT(VALUE, 0) && GETBIT(VALUE, 1) && GETBIT(VALUE, 2)
+		LOCALS = 全穴%LOCALS%
+	ELSE
+		SIF GETBIT(VALUE, 2)
+			LOCALS = 尿道%LOCALS%
+		SIF GETBIT(VALUE, 1)
+			LOCALS = Ａ%LOCALS%
+		SIF GETBIT(VALUE, 0)
+			LOCALS = Ｖ%LOCALS%
+	ENDIF
+CASE "精液弱点"
+	SELECTCASE VALUE
+	CASE 1p0
+		LOCALS = 精飲弱点
+	CASE 1p1
+		LOCALS = 膣内射精弱点
+	CASE 1p2
+		LOCALS = 肛内射精弱点
+	CASE 1p3
+		LOCALS = 乳内射精弱点
+	CASE 1p4
+		LOCALS = 尿道内射精弱点
+	;CASE 
+	;	LOCALS = 精液ぶっかけに弱い
+	ENDSELECT
+CASE "巨乳"
+	SELECTCASE VALUE
+	CASE 2
+		LOCALS = 爆乳
+	CASE IS >= 3
+		LOCALS = 超乳
+	ENDSELECT
+CASE "扶她"
+	SIF VALUE == 1
+		LOCALS = %LOCALS%(天然)
+CASE "妊娠"
+	SIF VALUE == 2
+		LOCALS = 臨月
+	SIF VALUE == 3
+		LOCALS = 出産間近
+CASE "出産経験"
+	LOCALS = 出産経験:{VALUE}人
+CASE "巨尻"
+	SELECTCASE VALUE
+	CASE 2
+		LOCALS = 爆尻
+	CASE IS >= 3
+		LOCALS = 超尻
+	ENDSELECT
+CASE "Ｃ性向"
+	SIF PENIS(ACTOR)
+		LOCALS = Ｐ性向
+CASE "有男朋友"
+	SELECTCASE VALUE
+	CASE 2
+		LOCALS = 人妻
+	ENDSELECT
+CASE "肤色"
+	SELECTCASE VALUE
+	CASE 1
+		LOCALS = 褐色肌
+	CASE 2
+		LOCALS = 色白
+	CASE 3
+		LOCALS = 青肌
+	ENDSELECT
+;レベルが有る
+CASE "娇小", "高大", "难以妊娠", "復活", "甜言蜜语", "謎之魅力", "大力士", "性豪", "吸精体質", "射精量強化", "Ｖ名器", "Ａ名器", "喉名器", "尿道名器"
+	SIF VALUE >= 2
+		LOCALS = %LOCALS%{VALUE}
+CASE "禁断的知識"
+	LOCALS = [%LOCALS%{VALUE}]
+	SIF VALUE >= 1
+		LOCALS += "[淫紋の刻印]"
+	SIF VALUE >= 2
+		LOCALS += "[具現]"
+	SIF VALUE >= 3
+		LOCALS += "[認識阻害]"
+	LOCALS = %SUBSTRING(LOCALS, 1, STRLENS(LOCALS) - 2)%
+CASE "錬金術"
+	LOCALS = %LOCALS%{VALUE}
+CASE "調教知識"
+	SELECTCASE VALUE
+	CASE 1p0
+		LOCALS = 愛撫・奉仕知識
+	CASE 1p1
+		LOCALS = 教育擅长
+	CASE 1p2
+		LOCALS = ＳＭ知識
+	CASE 1p3
+		LOCALS = Ａ調教知識
+	CASE 1p4
+		LOCALS = 性器拡張知識
+	CASE 1p5
+		LOCALS = 道具使
+	CASE 1p6
+		LOCALS = 露出知識
+	ENDSELECT
+CASE "性交熟達"
+	SELECTCASE VALUE
+	CASE 1p0 + 1p1 + 1p2
+		LOCALS = ３穴熟達
+	CASE 1p0 + 1p1, 1p0 + 1p2, 1p1 + 1p2
+		LOCALS = ２穴熟達
+	CASE 1p0
+		LOCALS = Ｖ熟達
+	CASE 1p1
+		LOCALS = Ａ熟達
+	CASE 1p2
+		LOCALS = 尿道熟達
+	ENDSELECT
+CASE "口服避孕薬派"
+	SIF VALUE < 0
+		LOCALS = 讨厌口服避孕薬
+CASE "避孕套派"
+	SIF VALUE < 0
+		LOCALS = 讨厌避孕套
+
+CASE "喜欢的体位"
+	LOCALS = 
+	SIF GETBIT(VALUE, 0)
+		LOCALS += "[正常位]"
+	SIF GETBIT(VALUE, 1)
+		LOCALS += "[後背位]"
+	SIF GETBIT(VALUE, 2)
+		LOCALS += "[屈曲位]"
+	SIF GETBIT(VALUE, 3)
+		LOCALS += "[対面座位]"
+	SIF GETBIT(VALUE, 4)
+		LOCALS += "[背面座位]"
+	SIF GETBIT(VALUE, 5)
+		LOCALS += "[騎乗位]"
+	SIF GETBIT(VALUE, 6)
+		LOCALS += "[推倒騎乗位]"
+
+	SIF GETBIT(VALUE, 9)
+		LOCALS += "[特に没有]"
+
+	SIF GETBIT(VALUE, 10)
+		LOCALS += "[Ａ正常位]"
+	SIF GETBIT(VALUE, 11)
+		LOCALS += "[Ａ後背位]"
+	SIF GETBIT(VALUE, 12)
+		LOCALS += "[Ａ屈曲位]"
+	SIF GETBIT(VALUE, 13)
+		LOCALS += "[Ａ対面座位]"
+	SIF GETBIT(VALUE, 14)
+		LOCALS += "[Ａ背面座位]"
+	SIF GETBIT(VALUE, 15)
+		LOCALS += "[Ａ騎乗位]"
+	SIF GETBIT(VALUE, 16)
+		LOCALS += "[推倒Ａ騎乗位]"
+
+	SIF GETBIT(VALUE, 19)
+		LOCALS += "[磨鏡]"
+
+	SIF GETBIT(VALUE, 20)
+		LOCALS += "[尿道正常位]"
+	SIF GETBIT(VALUE, 21)
+		LOCALS += "[尿道後背位]"
+	SIF GETBIT(VALUE, 22)
+		LOCALS += "[尿道屈曲位]"
+	SIF GETBIT(VALUE, 23)
+		LOCALS += "[尿道対面座位]"
+	SIF GETBIT(VALUE, 24)
+		LOCALS += "[尿道背面座位]"
+	SIF GETBIT(VALUE, 25)
+		LOCALS += "[尿道騎乗位]"
+	SIF GETBIT(VALUE, 26)
+		LOCALS += "[推倒尿道騎乗位]"
+
+	LOCALS = %SUBSTRING(LOCALS, 1, STRLENS(LOCALS) - 2)%
+
+CASE "動物耳"
+	;特徴的な物のみ
+	SELECTCASE VALUE
+	CASE 1
+		LOCALS = 猫耳
+	CASE 2
+		LOCALS = 狼耳
+	CASE 3
+		LOCALS = 狐耳
+	CASE 4
+		LOCALS = 馬耳
+	CASE 5
+		LOCALS = 兔耳
+	ENDSELECT
+CASE "陰蒂環"
+	SIF PENIS(ACTOR)
+		LOCALS = 陰蒂穿環
+ENDSELECT
+RETURNF LOCALS
+
+;-------------------------------------------------
+;满足条件的人数判定
+;-------------------------------------------------
+@CHARA_NUM(ARGS)
+#FUNCTION
+#DIM LCOUNT
+
+LOCAL = 0
+SELECTCASE ARGS
+CASE "吸能"
+	FOR LCOUNT, 1, CHARANUM
+		SIF NOWEX:LCOUNT:ARGS
+			LOCAL += 1
+	NEXT
+CASE "助手可能", "同伴可能"
+FOR LCOUNT, 2, CHARANUM
+		SIF COND(ARGS, LCOUNT)
+			LOCAL += 1
+	NEXT
+CASE "指示可能な助手"
+	FOR LCOUNT, 2, CHARANUM
+		SIF ABL:LCOUNT:助手
+			LOCAL += 1
+	NEXT
+CASE "控えキャラ"
+	LOCAL = CHARANUM - 2
+	SIF TARGET
+		LOCAL -= 1
+CASE "調教経験あり"
+	FOR LCOUNT, 2, CHARANUM
+		SIF EXP:LCOUNT:Ｈ回数
+			LOCAL += 1
+	NEXT
+CASE "繰り越しキャラ"
+	FOR LCOUNT, 2, CHARANUM
+		LOCAL += CFLAG:LCOUNT:繰り越しキャラ
+	NEXT
+CASE "陥落済み"
+	FOR LCOUNT, 2, CHARANUM
+		SIF TALENT:LCOUNT:淫乱 || TALENT:LCOUNT:恋慕
+			LOCAL += 1
+	NEXT
+CASE "恋慕淫乱"
+	FOR LCOUNT, 2, CHARANUM
+		SIF TALENT:LCOUNT:恋慕 || TALENT:LCOUNT:淫乱
+			LOCAL += 1
+	NEXT
+CASEELSE
+	FOR LCOUNT, 2, CHARANUM
+		SIF TALENT:LCOUNT:ARGS
+			LOCAL += 1
+	NEXT
+ENDSELECT
+RETURNF LOCAL
+
+;-------------------------------------------------
+;単語を/で区切られたARGSを[]で囲いつつ羅列する際に用いる
+;小さいフォントを使っているので、横幅が足りないものの表示に向く
+;単語_数字の形式で記述された部分は押すと数字を返すボタンになる
+;単語1/&/単語2と記述された部分は[単語1 単語2]となる
+;ARGS:1 = 拡大表示 の時にはフォントを弄らない
+;-------------------------------------------------
+@PRINT_LIST, ARGS, ARGS:1
+#DIM LCOUNT
+#DIMS MEMOS, 2
+;まさか100以上になるとはな
+#DIMS SPLIT_STR, 301
+
+VARSET SPLIT_STR
+SPLIT ARGS, "/", SPLIT_STR
+
+FOR LCOUNT, 0, 300
+	SELECTCASE SPLIT_STR:LCOUNT
+	CASE ""
+		CONTINUE
+	CASE "ショッキング粉紅", "粉紅", "ハート粉紅", "赤", "紅", "黄色", "暗黄色", "イエロー", "緑", "青", "水色", "暗灰色", "灰色", "明灰色", "白"
+		SETCOLOR DEF_COLOR(SPLIT_STR:LCOUNT)
+		CONTINUE
+	CASE "＆"
+		CONTINUE
+	CASEELSE
+		SIF LCOUNT == 0 || SPLIT_STR:(LCOUNT - 1) != "＆"
+			PRINT [
+
+		IF ARGS:1 != "拡大表示"
+			GETFONT
+			CHKFONT "Microsoft Himalaya"
+			SIF RESULT
+				SETFONT "Microsoft Himalaya"
+		ENDIF
+
+		;ボタン化させる？
+		VARSET MEMOS
+		SPLIT SPLIT_STR:LCOUNT, "_", MEMOS
+		IF MEMOS:1 != ""
+			PRINTBUTTON MEMOS, TOINT(MEMOS:1)
+		ELSE
+			PRINTFORM %SPLIT_STR:LCOUNT%
+		ENDIF
+		SIF ARGS:1 != "拡大表示"
+			SETFONT RESULTS
+		IF SPLIT_STR:(LCOUNT + 1) == "＆"
+			PRINT  
+		ELSE
+			PRINT ]
+		ENDIF
+		RESETCOLOR
+	ENDSELECT
+NEXT
+RESETCOLOR
+
+;------------------------------------
+;设置角色性别 0为女性，1为男性，2为扶她，3为无性别
+;------------------------------------
+@SET_SEX, ARG, ARG:1
+SELECTCASE ARG:1
+	CASE 0
+		TALENT:ARG:女性 = 1
+		TALENT:ARG:男性 = 0
+		TALENT:ARG:扶她 = 0
+	CASE 1
+		TALENT:ARG:女性 = 0
+		TALENT:ARG:男性 = 1
+		TALENT:ARG:扶她 = 0
+	CASE 2
+		TALENT:ARG:女性 = 0
+		TALENT:ARG:男性 = 0
+		TALENT:ARG:扶她 = 1
+	CASE 3
+		TALENT:ARG:女性 = 0
+		TALENT:ARG:男性 = 0
+		TALENT:ARG:扶她 = 0
+ENDSELECT

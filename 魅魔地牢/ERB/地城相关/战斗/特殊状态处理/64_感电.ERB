@@ -1,0 +1,65 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;感電为双方都有的状态属性。受到伤害时额外受到感電数值的电属性伤害，每次发动数值减半。
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_64, ARG
+SIF ARG <= 0
+    RETURN
+LOCAL = ENEMY_STATE:ARG:64
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_64, ARG
+SIF ARG<0
+    RETURN 
+LOCAL = CFLAG:ARG:64
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_64, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+ENEMY_STATE:ARG:64 += ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_64, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+CFLAG:ARG:64 += ARG:1
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;ARG为目标的编号 ARG:1为伤害数值
+;受到伤害时额外受到感電数值的电属性伤害，每次发动数值减半。
+@DECREASE_ENEMY_STATE_64, ARG
+SIF ARG <= 0
+    RETURN
+IF ENEMY_STATE:ARG:64 > 0
+    CALL MAGIC_ATTACK_TO_ENEMY,ARG,ENEMY_STATE:ARG:64,3
+ENDIF
+ENEMY_STATE:ARG:64 -= MAX(1,ENEMY_STATE:ARG:64/2)
+ENEMY_STATE:ARG:64 = MAX(0,ENEMY_STATE:ARG:64)
+RETURN
+
+@DECREASE_SUCCUBUS_STATE_64, ARG
+SIF ARG < 0
+    RETURN
+IF ENEMY_STATE:ARG:64 > 0
+    CALL MAGIC_ATTACK_TO_SUCCUBUS,ARG,CFLAG:ARG:64,3
+ENDIF
+CFLAG:ARG:64 -= MAX(1,CFLAG:ARG:64/2)
+CFLAG:ARG:64 = MAX(0,CFLAG:ARG:64)
+RETURN
+

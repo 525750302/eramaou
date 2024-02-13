@@ -1,0 +1,181 @@
+﻿;-------------------------------------------------
+;魔王宫殿
+;编号1
+;-------------------------------------------------
+
+;房间类型
+;0为罠，1为戦い部屋，2为后勤，3为监牢，4为祝福，5为腐化祝福，9为待建地块
+@ROOM_STYLE_1
+RETURN 1
+
+;房间星级
+@ROOM_RANK_1
+RETURN 10
+
+;返回房间名字，房间名字必须小于等于4个字
+@ROOM_NAME_1
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = 魔王宫殿
+RETURN
+
+;房间维持费
+;一般的房间维持费用为（建筑星级-2）/2（向下取整）
+@ROOM_COST_1
+LOCAL = 0
+RETURN LOCAL
+
+
+;房间介绍
+;返回使用的行数
+;ARG为房间的レベル
+@ROOM_INTRO_1,ARG
+#DIM RACE
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = 「この魔王城から世界へ」
+TEXT_RETURN:1 = 魔王
+TEXT_RETURN:2 = ▶魔王の部屋、魔王城内で唯一無二の建物であり、魔王城の中枢です。
+TEXT_RETURN:3 = ▶魔王の好みや種族に応じて、魔王城の装飾スタイルは大きく変化し、特に魔王の宮殿はその典型です。
+
+
+
+RETURN 4
+
+;房间效果介绍
+;返回使用的行数
+;ARG为房间的レベル 房间的效果实时计算
+@ROOM_SKILL_INTRO_1, ARG
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = ▶无
+RETURN 1
+
+;是否可以通过购买或者奖励卡片获得
+@ROOM_GET_FROM_1
+RETURN 0
+
+;是否地宫中只能存在一个
+@ROOM_ONLY_1
+RETURN 1
+
+;---------------------------------------
+;房间效果发动 ARG:0为目标编号，根据情况不同可能为モンスター的编号或者目标勇者的编号
+;战斗记录在发动的过程中进行记录
+;ARG:1为发动状态 -1为モンスター退出房间时对モンスター产生效果，0为モンスター部署进房间时对房间中的モンスター产生效果
+; 1为当勇者进场或者经过时产生效果 2战斗开始前对全地宫被动效果 3为房间联动 4为赋予特殊状态时发动的全地宫效果 5为目标被消灭时发动的效果 6目标被消灭时对全地宫发动的效果 7结算界面发动的效果
+;8设施安装时对全体モンスター发动的效果 9设施撤去时对全体モンスター发动的效果 10为每次モンスター受到攻击时触发的效果 11为每次目标受到攻击时触发的效果
+;ARG:2为赋予的特殊状态种类
+;ARG:3为房间的レベル
+;ARG:4, ARG:5 为房间的坐标位置
+@ROOM_ACT_1,ARG:0, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5
+#DIM LCOUNT 
+#DIM MAOU_RANK
+#DIM ROOM_ENEMY_NUM
+#DIM COUNT1
+MAOU_RANK = NUM("魔王星级", MAOU_RACE)
+SELECTCASE ARG:1
+    ;勇者进场
+    CASE 1
+        ;リリス
+        IF MAOU_RACE == 301 
+            IF MAOU_RANK > 5
+                CALL ADD_SUCCUBUS_STATE_103,MASTER,1
+            ENDIF
+        ENDIF
+    
+    ;勇者在房间中被消灭
+    CASE 5
+        ;リリス
+        IF MAOU_RACE == 301 
+            IF MAOU_RANK > 8
+                ROOM_ENEMY_NUM = ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:0 + 1
+            ENDIF
+
+            IF ROOM_ENEMY_NUM == 1
+                RETURN 0
+            ENDIF
+
+            FOR COUNT1,1,ROOM_ENEMY_NUM
+                IF ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1 <= 0
+                    CONTINUE
+                ENDIF
+                CALL ADD_ENEMY_STATE_51,ENEMY_DUNGEON_LOCATION:ENEMY_X:ENEMY_Y:COUNT1, 1 + BASE:MASTER:レベル/100
+            NEXT
+            CALL ADD_SUCCUBUS_STATE_100,MASTER, BASE:MASTER:レベル
+        ENDIF
+ENDSELECT
+RETURN 
+
+;-------------------------------
+;房间所需要的标签和要求
+;ARG 为0时只返回标签 1时返回详细要求
+;一个房间最多需求两个标签
+;返回使用的行数
+@ROOM_LABEL_CHECK_1, ARG
+
+TEXT_RETURN:0 = 无
+RETURN 1
+
+;-------------------------------
+;返还捕获力
+;捕获力上限为20 但是理论上可以用后勤设施和联动效果超过20
+;ARG与ARG:1为房间的X Y 位置
+@ROOM_CATCH_POWER_1, ARG, ARG:1
+#DIM COUNT1
+#DIM CATCH_POWER
+#DIM RACE
+RACE = NUM("种族",MASTER)
+
+;至少存在魔王
+CATCH_POWER = 3
+;魔王每100级增加一点捕获力，最多增加10次
+CATCH_POWER += MIN(BASE:MASTER:レベル / 100 , 10)
+
+;根据魔王不同需要的モンスター也不同
+SELECTCASE RACE
+
+;リリス
+CASE 301
+    FOR COUNT1,1,3
+        IF BOSSROOM_SUCCUBUS:COUNT1 == -1
+            CONTINUE
+        ENDIF
+        IF (TALENT:(BOSSROOM_SUCCUBUS:COUNT1):38 == 1)||(TALENT:(BOSSROOM_SUCCUBUS:COUNT1):10 == 1)
+            IF BASE:(BOSSROOM_SUCCUBUS:COUNT1):星级 >= 3
+                CATCH_POWER += 1
+            ELSEIF BASE:(BOSSROOM_SUCCUBUS:COUNT1):星级 >= 6
+                CATCH_POWER += 2
+            ENDIF
+        ENDIF
+    NEXT
+ENDSELECT
+
+RETURN CATCH_POWER
+
+
+
+;-------------------------------
+;返回房间容纳的勇者数上限
+@ROOM_CATCH_NUM_1
+RETURN 300
+
+;------------------------------
+;融合方式
+;最多以三种房间为融合素材进行融合
+@ROOM_FUSION_FUNCTION_1
+#DIM MATERIAL_NUM
+#DIM MATERIAL,3
+#DIM COUNTER
+
+;作为素材的房间数量，当数量为0的时候表示不可以通过房间融合获得
+MATERIAL_NUM = 0
+
+;有多少个材料复制填写多少次 MATERIAL:编号 = 素材房间的种类编号
+MATERIAL:0 = 0
+
+RETURN MATERIAL_NUM,MATERIAL:0,MATERIAL:1,MATERIAL:2
+
+
+@ROOM_BAG_CHECK_1
+IF FLAG:500>0
+    RETURN 1
+ENDIF
+RETURN 0

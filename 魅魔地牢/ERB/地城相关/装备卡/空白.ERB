@@ -1,0 +1,61 @@
+﻿;-------------------------------------------------
+;XXXX
+;编号X
+;-------------------------------------------------
+
+;装备类型
+;0为武器 1为上身护甲 2为下身护甲
+@WEAPON_STYLE_X
+RETURN 0
+
+;装备星级
+@WEAPON_RANK_X
+RETURN 0
+
+;返回装备名字，装备名字必须小于等于4个字
+@WEAPON_NAME_X
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = XXXX
+RETURN
+
+;装备介绍
+;返回使用的行数
+;ARG为装备的レベル
+@WEAPON_INTRO_X,ARG
+VARSET TEXT_RETURN
+;开头的引用与引用者
+TEXT_RETURN:0 = 
+TEXT_RETURN:1 = 
+
+TEXT_RETURN:2 = ▶
+RETURN 3
+
+;装备效果介绍
+;返回使用的行数
+;装备的效果实时计算
+@WEAPON_SKILL_INTRO_X
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = ▶
+RETURN 1
+
+;是否可以通过购买或者奖励卡片获得
+@WEAPON_GET_FROM_X
+RETURN 0
+
+;是否地宫中只能存在一个
+@WEAPON_ONLY_X
+RETURN 0
+
+;---------------------------------------
+;装备效果发动 ARG:0为目标编号，根据情况不同可能为モンスター的编号或者目标勇者的编号
+;ARG:1为发动状态 -1为モンスター卸下装备时对モンスター产生效果，0为モンスター装备上装备时产生效果
+; 1为当勇者进场或者经过时产生效果 2为每次モンスター受到攻击时触发的效果 3为每次目标受到攻击时触发的效果 4为目标每次被赋予特殊状态时发动效果
+;ARG:2为赋予的特殊状态种类
+@WEAPON_ACT_X,ARG:0, ARG:1, ARG:2
+#DIM LCOUNT 
+
+SELECTCASE ARG:1
+    CASE 0
+ENDSELECT
+RETURN 
+

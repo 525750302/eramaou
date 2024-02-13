@@ -1,0 +1,524 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理索引
+;统一编号
+;0 发动攻击时， 1 受到攻击时， 2 进入罠房间时， 3 被赋予特殊状态时， 4回合开始时， 5被击败时, 6 发动主动技能时， 7 被判定捕获时, 8 勇者选择攻击对象时
+;ARG 持有状态的勇者编号 ARG:1 上述的状态编号 ARG:2 受到的伤害或者特殊状态编号或造成的伤害 
+;只有在进行攻击或者接受攻击时使用的参数 ARG:3为行动对象的モンスター编号 ARG:4为勇者的编号
+;注意当处于发动攻击状态时 若返回值为-1那么表示无法发动普通攻击
+;-------------------------------------------------
+@CHECK_ENEMY_STATE, ARG, ARG:1, ARG:2, ARG:3, ARG:4
+#DIM COUNT1
+#DIM COUNT2
+
+IF ARG<= 0
+    PRINTW 编号错误,CHECK_ENEMY_STATE
+    RETURN
+ENDIF
+
+SELECTCASE ARG:1
+    ;发动攻击时
+    CASE 0
+        ;最基础的攻撃力增加方式
+        ;判定狂氣
+        CALL CHECK_ENEMY_STATE_102,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_102,ARG,ARG:2
+            ARG:2 = RESULT
+        ENDIF
+;
+        ;;因为集中发生暴击
+        ;;判定集中
+        ;CALL CHECK_ENEMY_108, ARG
+        ;IF RESULT > 0
+        ;    ARG:2 = ARG:2*(3 + (RESULT / 20)/5)/2
+        ;    CALL DECREASE_ENEMY_STATE_108, ARG
+        ;ENDIF
+;          
+
+        ;最后根据攻击对象判定敌我攻击倍率
+        ;攻击对象为友方
+        IF ARG:4 > 0 
+            ;检查是否有裏切
+            CALL CHECK_ENEMY_STATE_55, ARG
+            IF RESULT > 0
+                ;攻撃力翻倍
+                CALL DECREASE_ENEMY_STATE_55, ARG, ARG:2
+            ENDIF
+
+            ;检查是否有服従
+            CALL CHECK_ENEMY_STATE_53,ARG
+            IF RESULT > 0
+                ;攻撃力返回
+                ;实际上*1.5
+                CALL DECREASE_ENEMY_STATE_53, ARG,ARG:2,ARG:3, ARG:4
+                ARG:2 = RESULT
+            ENDIF
+        ELSE
+            ;检查是否有服従
+            CALL CHECK_ENEMY_STATE_53,ARG
+            IF RESULT > 0
+                ;攻撃力返回
+                ;实际上变为0.7
+                CALL DECREASE_ENEMY_STATE_53, ARG,ARG:2,ARG:3, ARG:4
+                ARG:2 = RESULT
+            ENDIF
+    
+        ENDIF
+        ;检查是否因为目盲而失手
+        CALL CHECK_ENEMY_STATE_62,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_62,ARG,ARG:2
+            ;若失手则直接跳过
+            ARG:2 = RESULT
+            RETURN ARG:2
+        ENDIF
+        ;因为武器、性器被破坏，效能减少一半
+        ;判定破壊
+        CALL CHECK_ENEMY_STATE_59,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_59,ARG,ARG:2
+            ARG:2 = RESULT
+        ENDIF
+       
+        RETURN ARG:2
+    
+    ;受到攻击时
+    CASE 1
+;
+;        ;判定是否有隠れ或者神聖
+;        CALL CHECK_ENEMY_STATE_104, ARG
+;        IF RESULT > 0 
+;            ARG:2 = 0
+;            CALL DECREASE_ENEMY_STATE_104, ARG
+;        ENDIF
+;
+;        IF ARG:2 > 0
+;            CALL CHECK_ENEMY_STATE_106, ARG
+;            IF RESULT > 0
+;                ARG:2 =0
+;                CALL DECREASE_ENEMY_STATE_106, ARG
+;            ENDIF
+;        ENDIF
+;
+;        ;判定とげ
+;        ;就算是没有造成伤害也会有とげ
+;        ;とげ不会减少
+;        CALL CHECK_ENEMY_STATE_109, ARG
+;        IF RESULT > 0 
+;            IF ARG:4 > 0 
+;                ENEMY_NOW_HP -= RESULT
+;            ELSEIF ARG:3 > -1
+;                BASE:SUCCUBUS:NOW_HP -= RESULT
+;            ENDIF
+;        ENDIF
+;
+        ;判定反射
+        IF ARG:2>0
+            CALL CHECK_ENEMY_STATE_103, ARG
+            IF RESULT > 0
+                CALL DECREASE_ENEMY_STATE_103, ARG, ARG:2, ARG:3, ARG:4
+                ARG:2 = RESULT
+                RETURN ARG:2
+            ENDIF
+        ENDIF
+;
+;        ;判定硬い
+;        IF ARG:2>0
+;            CALL CHECK_ENEMY_STATE_112, ARG
+;            IF RESULT > 0
+;                ARG:2 = ARG:2 / 2
+;                CALL DECREASE_ENEMY_STATE_112, ARG
+;            ENDIF
+;        ENDIF
+;
+;        ;判定是否触发吸收
+;        IF ARG:2>0
+;            CALL CHECK_ENEMY_STATE_111, ARG
+;            IF RESULT>0
+;                IF ARG:2 > ENEMY_HP:ARG /20
+;                    ARG:2 = ENEMY_HP:ARG /20
+;                    CALL DECREASE_ENEMY_STATE_111, ARG
+;                ENDIF
+;            ENDIF
+;        ENDIF
+;
+;        ;判定怒り
+;        ;即使没有造成伤害也会触发怒り
+;        CALL CHECK_ENEMY_STATE_110, ARG
+;        IF RESULT>0
+;            ;怒り值不会减少
+;            CALL ADD_ENEMY_STATE_102, ARG
+;        ENDIF
+;
+;        ;钝感抵消伤害
+;        CALL CHECK_ENEMY_STATE_105,ARG
+;        LOCAL:1 = RESULT
+;        IF LOCAL:1 > 0
+;            ARG:2 = MAX(0,ARG:2 - LOCAL:1)
+;            LOCAL = MIN(ARG:2, LOCAL:1)
+;            CALL DECREASE_ENEMY_STATE_105, ARG, LOCAL
+;        ENDIF
+;
+;        ;检查改心
+;        ;改心无法用任何手段消除
+;        CALL CHECK_ENEMY_STATE_56, ARG
+;        IF RESULT >0
+;            ARG:2 = ARG:2 * (100+RESULT)/100
+;        ENDIF
+        ;判定感電
+        CALL CHECK_ENEMY_STATE_64,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_64,ARG
+        ENDIF
+
+        ;判定破れ
+        CALL CHECK_ENEMY_STATE_63,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_63,ARG,ARG:2
+            ARG:2 = RESULT
+        ENDIF
+        RETURN ARG:2
+;    
+;    ;进入罠房间
+;    ;检查是否有賢い
+;    CASE 2
+;        CALL CHECK_ENEMY_STATE_113, ARG
+;        IF RESULT>0
+;            CALL DECREASE_ENEMY_STATE_113, ARG
+;            RETURN 1
+;        ELSE
+;            RETURN 0
+;        ENDIF
+;
+;    ;被赋予特殊状态时，检查是否有免疫以避免负面状态或者払い以阻止正面状态附加
+;    CASE 3
+;        IF (ARG:2>= 50) and (ARG:2< 100)
+;            ;检查払い
+;            CALL CHECK_ENEMY_STATE_60, ARG
+;            IF RESULT > 0 
+;                CALL DECREASE_ENEMY_STATE_60, ARG
+;                RETURN 1
+;            ELSE
+;                RETURN 0
+;            ENDIF
+;        ELSEIF (ARG:2>= 100) and (ARG:2< 150)
+;            ;检查免疫
+;            CALL CHECK_ENEMY_STATE_107,ARG
+;            IF RESULT > 0 
+;                CALL DECREASE_ENEMY_STATE_107, ARG
+;                RETURN 1
+;            ELSE
+;                RETURN 0
+;            ENDIF
+;        ENDIF
+;
+;
+    ;回合行动开始时
+    CASE 4
+        ;回复活力
+        CALL CHECK_ENEMY_STATE_101, ARG
+        ;LOCAL 记录原数值
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_ENEMY_STATE_101, ARG
+        ENDIF
+
+        ;检查晕眩
+        CALL CHECK_ENEMY_STATE_58, ARG
+        IF RESULT>0
+            CALL DECREASE_ENEMY_STATE_58, ARG
+            RETURN 1
+        ENDIF
+
+        ;检查遅い
+        CALL CHECK_ENEMY_STATE_50 , ARG
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_ENEMY_STATE_50, ARG
+        ENDIF
+
+        ;检查喜び
+        CALL CHECK_ENEMY_STATE_100, ARG
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_ENEMY_STATE_100, ARG
+        ENDIF
+
+        ;检查毒素
+        CALL CHECK_ENEMY_STATE_57, ARG
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_ENEMY_STATE_57, ARG
+        ENDIF
+
+    ;被击败时
+;    CASE 5
+;
+    ;发动主动技能，检查是否有沉默
+    CASE 6
+        CALL CHECK_ENEMY_STATE_61, ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_61, ARG
+            RETURN 1
+        ELSE
+            RETURN 0
+        ENDIF
+    
+;    ;判定捕获
+;    CASE 7
+;        CALL CHECK_ENEMY_STATE_114, ARG
+;        IF RESULT > 0
+;            CALL DECREASE_ENEMY_STATE_114, ARG
+;            RETURN 1
+;        ELSE
+;            RETURN 0
+;        ENDIF
+;    
+    ;选择攻击对象
+    CASE 8
+        ;检查魅了
+        CALL CHECK_ENEMY_STATE_51,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_51,ARG
+            RETURN RESULT
+        ENDIF
+
+        ;检查混乱
+        CALL CHECK_ENEMY_STATE_52,ARG
+        IF RESULT > 0
+            CALL DECREASE_ENEMY_STATE_52,ARG
+            RETURN RESULT
+        ENDIF
+
+        ;如果没有返还-1表示没有魅了或者混乱状态
+        RETURN -1
+
+        ;检查混乱
+
+ENDSELECT
+
+;-------------------------------------------------
+;モンスター的状态检查 但是进入罠房间和被捕获的部分为空
+@CHECK_SUCCUBUS_STATE, ARG, ARG:1, ARG:2, ARG:3,ARG:4
+#DIM COUNT1
+#DIM COUNT2
+
+IF (ARG < 0) || (ARG >= CHARANUM)
+    PRINTW 编号错误，CHECK_SUCCUBUS_STATE
+    RETURN
+ENDIF
+
+SELECTCASE ARG:1
+    ;发动攻击时
+    CASE 0
+        ;最基础的攻撃力增加方式
+        ;判定狂氣
+        CALL CHECK_SUCCUBUS_STATE_102,ARG
+        IF RESULT > 0
+            CALL DECREASE_SUCCUBUS_STATE_102,ARG,ARG:2
+            ARG:2 = RESULT
+        ENDIF
+;
+;        ;因为集中发生暴击
+;        ;判定集中
+;        CALL CHECK_SUCCUBUS_108, ARG
+;        IF RESULT > 0
+;            ARG:2 = ARG:2*(3 + (RESULT / 20)/5)/2
+;            CALL DECREASE_SUCCUBUS_STATE_108, ARG
+;        ENDIF
+        ;检查是否因为目盲而失手
+        CALL CHECK_SUCCUBUS_STATE_62,ARG
+        IF RESULT > 0
+            CALL DECREASE_SUCCUBUS_STATE_62,ARG,ARG:2
+            ;若失手则不可攻击
+            ARG:2 = RESULT
+            RETURN ARG:2
+        ENDIF
+
+        ;因为武器、性器被破坏，效能减少一半
+        ;判定破壊
+        CALL CHECK_SUCCUBUS_STATE_59,ARG
+        IF RESULT > 0
+            CALL DECREASE_SUCCUBUS_STATE_59,ARG,ARG:2
+            ARG:2 = RESULT
+        ENDIF
+
+;
+        RETURN ARG:2
+;    
+;    ;受到攻击时
+    CASE 1
+;        ;判定是否有隠れ或者神聖
+;        CALL CHECK_SUCCUBUS_STATE_104, ARG
+;        IF RESULT > 0 
+;            ARG:2 = 0
+;            CALL DECREASE_SUCCUBUS_STATE_104, ARG
+;        ENDIF
+;
+;        IF ARG:2 > 0
+;            CALL CHECK_SUCCUBUS_STATE_106, ARG
+;            IF RESULT > 0
+;                ARG:2 =0
+;                CALL DECREASE_SUCCUBUS_STATE_106, ARG
+;            ENDIF
+;        ENDIF
+;
+;        ;判定とげ
+;        ;就算是没有造成伤害也会有とげ
+;        ;とげ不会减少
+;        CALL CHECK_SUCCUBUS_STATE_109, ARG
+;        IF RESULT > 0 
+;            IF ARG:4 > 0 
+;                ENEMY_NOW_HP -= RESULT
+;            ELSEIF ARG:3 > -1
+;                BASE:SUCCUBUS:NOW_HP -= RESULT
+;            ENDIF
+;        ENDIF
+;
+        ;判定反射
+        IF ARG:2>0
+            CALL CHECK_SUCCUBUS_STATE_103, ARG
+            IF RESULT > 0
+                CALL DECREASE_SUCCUBUS_STATE_103, ARG, ARG:2, ARG:3, ARG:4
+                ARG:2 = RESULT
+                RETURN ARG:2
+            ENDIF
+        ENDIF
+;
+;        ;判定硬い
+;        IF ARG:2>0
+;            CALL CHECK_SUCCUBUS_STATE_112, ARG
+;            IF RESULT > 0
+;                ARG:2 = ARG:2 / 2
+;                CALL DECREASE_SUCCUBUS_STATE_112, ARG
+;            ENDIF
+;        ENDIF
+;
+;        ;判定是否触发吸收
+;        IF ARG:2>0
+;            CALL CHECK_SUCCUBUS_STATE_111, ARG
+;            IF RESULT>0
+;                IF ARG:2 > BASE:ARG:HP /20
+;                    ARG:2 = BASE:ARG:HP /20
+;                    CALL DECREASE_SUCCUBUS_STATE_111, ARG
+;                ENDIF
+;            ENDIF
+;        ENDIF
+;
+;        ;判定怒り
+;        ;即使没有造成伤害也会触发怒り
+;        CALL CHECK_SUCCUBUS_STATE_110, ARG
+;        IF RESULT>0
+;            ;怒り值不会减少
+;            CALL ADD_SUCCUBUS_STATE_102, ARG
+;        ENDIF
+;
+;        ;钝感抵消伤害
+;        CALL CHECK_SUCCUBUS_STATE_105,ARG
+;        LOCAL:1 = RESULT
+;        IF LOCAL:1 > 0
+;            ARG:2 = MAX(0,ARG:2 - LOCAL:1)
+;            LOCAL = MIN(ARG:2, LOCAL:1)
+;            CALL DECREASE_SUCCUBUS_STATE_105, ARG, LOCAL
+;        ENDIF
+        ;判定感電
+        CALL CHECK_SUCCUBUS_STATE_64,ARG
+        IF RESULT > 0
+            CALL DECREASE_SUCCUBUS_STATE_64,ARG
+        ENDIF
+
+        ;判定破れ
+        CALL CHECK_SUCCUBUS_STATE_63,ARG
+        IF RESULT > 0
+            CALL DECREASE_SUCCUBUS_STATE_63,ARG,ARG:2
+            ARG:2 = RESULT
+        ENDIF
+        RETURN ARG:2
+;    
+;    ;进入罠房间
+;    ;检查是否有賢い
+;    CASE 2
+;
+;    ;被赋予特殊状态时，检查是否有免疫以避免负面状态或者払い以阻止正面状态附
+;    CASE 3
+;        IF (ARG:2>= 50) and (ARG:2< 100)
+;            ;检查払い
+;            CALL CHECK_SUCCUBUS_STATE_60, ARG
+;            IF RESULT > 0 
+;                CALL DECREASE_SUCCUBUS_STATE_60, ARG
+;                RETURN 1
+;            ELSE
+;                RETURN 0
+;            ENDIF
+;        ELSEIF (ARG:2>= 100) and (ARG:2< 150)
+;            ;检查免疫
+;            CALL CHECK_SUCCUBUS_STATE_107,ARG
+;            IF RESULT > 0 
+;                CALL DECREASE_SUCCUBUS_STATE_107, ARG
+;                RETURN 1
+;            ELSE
+;                RETURN 0
+;            ENDIF
+;        ENDIF
+;
+
+    ;回合行动开始时
+    CASE 4
+        ;回复活力
+        CALL CHECK_SUCCUBUS_STATE_101, ARG
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_SUCCUBUS_STATE_101, ARG
+        ENDIF
+
+        ;检查晕眩
+        CALL CHECK_SUCCUBUS_STATE_58, ARG
+        IF RESULT>0
+            CALL DECREASE_SUCCUBUS_STATE_58, ARG
+            RETURN 1
+        ENDIF
+
+        ;检查遅い
+        CALL CHECK_SUCCUBUS_STATE_50 , ARG
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_SUCCUBUS_STATE_50, ARG
+        ENDIF
+
+        ;检查喜び
+        CALL CHECK_SUCCUBUS_STATE_100, ARG
+        LOCAL = RESULT
+        IF LOCAL > 0
+            CALL DECREASE_SUCCUBUS_STATE_100, ARG
+        ENDIF
+
+        ;检查毒素
+        CALL CHECK_SUCCUBUS_STATE_57, ARG
+        IF RESULT> 0
+            CALL DECREASE_SUCCUBUS_STATE_57, ARG
+        ENDIF
+
+;    ;被击败时
+;    CASE 5
+;        ;
+;
+    ;发动主动技能，检查是否有沉默
+    CASE 6
+        CALL CHECK_SUCCUBUS_STATE_61, ARG
+        IF RESULT > 0
+            CALL DECREASE_SUCCUBUS_STATE_61, ARG
+            RETURN 1
+        ELSE
+            RETURN 0
+        ENDIF
+;    
+;    ;判定捕获
+;    CASE 7
+    
+ENDSELECT
+
+
+
+
+
+

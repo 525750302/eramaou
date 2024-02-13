@@ -1,0 +1,1 @@
+Please click Emuera1824.exe to start the game.

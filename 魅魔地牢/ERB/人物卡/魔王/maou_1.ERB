@@ -1,0 +1,221 @@
+﻿;-------------------------------------------------
+;魔王相关的函数 更改X与XXX的内容就可以编写新的魔王信息
+;-------------------------------------------------
+;魔王是否存在
+@SUCCUBUS_301
+
+RETURN 1
+
+;返回魔王的名字
+@SUCCUBUS_NAME_301
+VARSET TEXT_RETURN
+TEXT_RETURN:0 = リリス
+RETURN
+
+;返回魔王的介绍
+@SUCCUBUS_INTRO_301
+
+VARSET TEXT_RETURN
+;开头的引用与引用者
+TEXT_RETURN:0 = 「私の命令に従え。」
+TEXT_RETURN:1 = リリス
+;具体的介绍
+TEXT_RETURN:2 = ▶魔王リリスは、暗黒の大陸を統べる強大な力を持つ存在であり、その姿は畏敬の念を抱かせます。
+TEXT_RETURN:3 = ▶彼女は優雅かつ美しいが、その美しさは冷酷な力と混ざり合い、彼女の目は深淵のような知恵と野望を秘めています。
+TEXT_RETURN:4 = ▶リリスの支配下では、暗黒の影が大地を覆い、その中に潜む悪夢が広がります。
+TEXT_RETURN:5 = ▶彼女は冷酷な戦略家であり、その軍勢は緻密かつ無慈悲な手段で敵を打ち破ります。
+TEXT_RETURN:6 = ▶彼女の指導の下、配下の魔物たちは彼女の意志を忠実に遂行し、その中でも特に精鋭の魔物たちは彼女の恐るべき力によって力を引き出されています。
+TEXT_RETURN:7 = 
+TEXT_RETURN:8 = ▶しかし、リリスはただの冷酷な征服者ではなく、彼女の内には複雑な感情と過去の傷が深く根付いています。
+TEXT_RETURN:9 = ▶その一方で、彼女の野望は終わりの見えないものであり、彼女は自身の存在を超越し、闘志を胸に未知の領域を求めています。
+TEXT_RETURN:10 = ▶リリスの名前は、恐怖と悲劇の中に響き渡り、彼女の影響下で世界は暗黒の中に包まれています。
+
+RETURN 11
+
+;返回对魔王的技能介绍，ARG表示为具体哪一个星级的技能
+@SUCCUBUS_SKILL_INTRO_301, ARG, ARG:1
+#DIM LCOUNT
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301);MAOU_RANK = NUM("魔王星级", X)
+
+VARSET TEXT_RETURN
+SELECTCASE ARG
+    CASE 0
+        TEXT_RETURN:0 = 魅了
+        TEXT_RETURN:1 = リリスの攻撃は追加で{BASE:MASTER:レベル/2}(0.5*レベル)の物理ダメージを与え、そして勇者に{1 + BASE:MASTER:レベル/100}(1+0.01*レベル)の魅了を付与します。
+        LCOUNT = 2
+    CASE 1 
+        TEXT_RETURN:0 = 喜び
+        TEXT_RETURN:1 = 魅了状態の勇者に攻撃すると、リリスに{BASE:MASTER:攻撃力}(*1.0攻击)の喜びを与えます。
+        LCOUNT = 2
+    CASEELSE
+        
+ENDSELECT
+
+RETURN LCOUNT
+
+;-------------------------------------------------
+;魔王技能发动的函数
+;ARG为目标的编号，注意当魔王受到魅了等效果影响时不会发动技能
+;ARG:1为当前的战斗状态。0为击中目标，1为受到来自目标的攻击，2为受到来自目标的负面效果影响，3为目标进入房间，4为目标进行行动，5为目标被击败，6为发动主动技能，7为进入结算页面
+;8为其他モンスター对目标进行攻击， 9为其他モンスター受到来自目标的攻击， 10为其他モンスター被击败,11为モンスター击败勇者
+;ARG:2为发动的主动技能号  或者是即将收到的伤害 或者是负面状态编号 或者是即将对目标造成的伤害
+;-------------------------------------------------
+@SUCCUBUS_SKILL_301, ARG, ARG:1, ARG:2, ARG:3
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301)
+SELECTCASE ARG:1
+    ;击中目标
+    CASE 0
+        LOCAL = ARG:2
+        ;リリス的攻击会额外造成(0.5*レベル)的物理伤害
+        lOCAL = LOCAL + BASE:MASTER:レベル/2
+        ;星级高于1时 攻击处于魅了的勇士时，赋予リリス(*1.0攻击)的喜び。
+        IF MAOU_RANK > 1
+            CALL CHECK_ENEMY_STATE_51, ARG
+            IF RESULT > 0
+                CALL ADD_SUCCUBUS_STATE_100, MASTER, BASE:MASTER:攻撃力
+            ENDIF
+        ENDIF
+        ;并且赋予勇者(1+0.01*レベル)的魅了
+        CALL ADD_ENEMY_STATE_51,ARG, 1 + BASE:MASTER:レベル/100
+
+        ;被リリス攻击到的勇者将会不由自主地像魔物一样对モンスター女王献上忠诚，每次攻击都将赋予勇者3的服従和1的裏切。
+        IF MAOU_RANK > 9
+            CALL ADD_ENEMY_STATE_53,ARG, 3
+            CALL ADD_ENEMY_STATE_55,ARG, 1
+        ENDIF
+        ;返还伤害值
+        RETURN lOCAL
+    CASE 1
+        RETURN 
+        
+    CASE 2 
+    CASEELSE
+        
+ENDSELECT
+
+
+;-------------------------------------------------
+;更新魔王属性
+;魔王的能力必须在此处进行初始化 必须进行记录
+;-------------------------------------------------
+@SUCCUBUS_INIT_301
+
+BASE:MASTER:レベル = 1
+BASE:MASTER:HP = 450
+BASE:MASTER:攻撃力 = 56
+BASE:MASTER:防御力 = 24
+BASE:MASTER:速度 = 3
+BASE:MASTER:种族 = 301
+BASE:MASTER:子宫容量 = 100
+
+ABL:MASTER:欲望 = 3
+ABL:MASTER:露出癖 = 2
+ABL:MASTER:V感觉 = 2
+ABL:MASTER:施虐毒素 = 1
+ABL:MASTER:V技术 = 2
+ABL:MASTER:指技术 = 2
+ABL:MASTER:V名器度 = RAND:2 +1
+ABL:MASTER:魔乳 = 1
+
+CFLAG:MASTER:冰抗性 = 0
+CFLAG:MASTER:火抗性 = 0
+CFLAG:MASTER:电抗性 = 0
+CFLAG:MASTER:酸抗性 = 0
+CFLAG:MASTER:风抗性 = 0
+CFLAG:MASTER:暗抗性 = 0
+CFLAG:MASTER:光抗性 = 0
+CFLAG:MASTER:喜び抗性 = 2
+
+
+;-------------------------------------------------
+;魔王的特殊性战斗相关函数(未实装)
+;-------------------------------------------------
+@SUCCUBUS_SEX_SKILL_301, ARG
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301)
+SELECTCASE ARG:1
+    CASE 1
+        
+        
+    CASE 2 
+    CASEELSE
+
+ENDSELECT
+
+;返还モンスター一个回合能够进行的行动次数
+@SUCCUBUS_ACTION_TURN_301
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", 301)
+IF MAOU_RANK > 6
+    RETURN 2
+ENDIF
+RETURN 1
+
+;返还初始HP
+@SUCCUBUS_START_HP_301
+RETURN 450
+
+;返还初始攻撃力
+@SUCCUBUS_START_ATT_301
+RETURN 56
+
+;返还初始HP
+@SUCCUBUS_START_DEF_301
+RETURN 24
+
+;返还初始速度
+@SUCCUBUS_START_SPEED_301
+RETURN 3
+
+;返回モンスター的魔法抗性
+;-1易伤（收到伤害翻倍） 0正常 1抵抗（收到的伤害减半） 2高抗（收到的伤害为原本的10%）
+;冰伤害为1，火伤害为2，电伤害为3，酸伤害为4，风伤害为5，暗伤害为6，光伤害为7,喜び伤害为8
+@SUCCUBUS_MAGIC_RESIST_301
+#DIM RESIST,10
+
+;冰
+RESIST:1 = 0
+;火
+RESIST:2 = 0
+;电
+RESIST:3 = 0
+;酸
+RESIST:4 = 0
+;风
+RESIST:5 = 0
+;暗
+RESIST:6 = 0
+;光
+RESIST:7 = 0
+;喜び
+RESIST:8 = 2
+
+RETURN RESIST
+
+;添加战斗记录
+;ARG:1为交互的勇者编号，当为-1时表示死于状态
+;ARG:2为モンスター编号
+;ARG:3为触发的负面状态,1为表示处于捕获状态下
+;ARG为1时表示モンスター战败，2表示モンスター击败目标
+@SUCCUBUS_ADD_BATTLE_LOG_301,ARG,ARG:1,ARG:2,ARG:3
+#DIMS SUCCUBUS_NAME
+#DIMS ENEMY_NAME
+CALL CALL_SUCCUBUS_NAME,ARG:2,0
+SUCCUBUS_NAME = %TEXT_RETURN:0%
+CALL RESET_TEXT_RETURN
+TRYCALLFORM ENEMY_NAME_{ENEMY:(ARG:1)}
+IF TEXT_RETURN:0 !=""
+    ENEMY_NAME = %TEXT_RETURN:0%
+ENDIF
+SELECTCASE ARG
+    ;モンスター战败
+    CASE 1
+        LOCALS = 残念ですが、%SUCCUBUS_NAME%が%ENEMY_NAME%に倒されました。
+        CALL ADD_BATTLE_LOG,LOCALS
+    ;モンスター击败目标
+    CASE 2
+        LOCALS = %SUCCUBUS_NAME%が%ENEMY_NAME%を撃破した
+        CALL ADD_BATTLE_LOG,LOCALS
+ENDSELECT

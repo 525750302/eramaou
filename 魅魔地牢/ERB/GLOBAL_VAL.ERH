@@ -1,0 +1,90 @@
+﻿;-------------------------------------------------
+;地城相关
+;-------------------------------------------------
+;魔王城中的房间位置
+;-1表示不可用 0表示待建地块
+#DIM SAVEDATA DUNGEON,10,10
+#DIM SAVEDATA DUNGEON_LEVEL,10,10
+#DIM SAVEDATA DUNGEON_EXP,10,10
+#DIM SAVEDATA DUNGEON_WIDTH
+#DIM SAVEDATA DUNGEON_LENGTH
+;每个房间的联通情况，0表示上 1表示左 2表示下 3表示右
+#DIM SAVEDATA DUNGEON_CONNECT,10,10,4
+;地城最左上角为START,最右下角为END
+;横向为X，竖向为Y
+#DIM SAVEDATA DUNGEON_START_X
+#DIM SAVEDATA DUNGEON_START_Y
+#DIM SAVEDATA DUNGEON_END_X
+#DIM SAVEDATA DUNGEON_END_Y
+#DIM SAVEDATA BOSS_LOCATION_X
+#DIM SAVEDATA BOSS_LOCATION_Y
+;地宫入口位置
+#DIM SAVEDATA ENTER_X,10
+#DIM SAVEDATA ENTER_Y,10
+;除魔王宫殿外，管理所有榨精房间中容纳的勇者编号,0号位表示该房间能够容纳几个勇者 容纳单位为勇者的角色编号
+;容纳栏位为空时用-1表示
+#DIM DUNGEON_CONTAIN,10,10,10
+
+#DIM MENU_MODE
+
+;モンスター名单，内容物为角色编号
+#DIM SAVEDATA SUCCUBUS,300
+;统计某种モンスター的数量，帮助自动命名
+#DIM SAVEDATA SUCCUBUS_NUM,300,300
+;记录是否已经获得过モンスター
+;需要注意的是魔王并不会在图鉴中出现
+#DIM SAVEDATA SUCCUBUS_GOT,1000
+;魔王的种族编号
+#DIM SAVEDATA MAOU_RACE
+#DIM SAVEDATA SOUL
+
+;モンスター在地宫中的位置,内容物为モンスター的编号
+;0号位表示数量 -1表示不存在
+#DIM SAVEDATA SUCCUBUS_LOCATION,10,10
+;BOSSROOM_SUCCUBUS -1表示不存在 需要特殊判定
+#DIM SAVEDATA BOSSROOM_SUCCUBUS,3
+
+;一日的勇者数据
+;记录勇者的种类，若为0则表示勇者不存在或者已被击败
+;ENEMY从1开始记录勇者种类，0号位置空置
+;种类编号100以下为普通勇者，101-200为对应的命定勇者
+;勇者被打倒时变回0以减少计算量
+#DIM ENEMY,600
+#DIM ENEMY_LOCATION_X,600
+#DIM ENEMY_LOCATION_Y,600
+;标记勇者战斗的モンスター对象编号 不存在战斗对象时用-1表示
+#DIM ENEMY_FIGHTING,600
+;捕获标记，被捕获的勇者无法移动也无法使用主动技能
+;同时攻撃力与防御力减半 被击败后该房间的モンスター获得勇者生命值30%的再生 可以通过后勤设施提高这一数值
+#DIM ENEMY_CATCH,600
+#DIM ENEMY_HP,600
+#DIM ENEMY_NOW_HP,600
+#DIM ENEMY_ATT,600
+#DIM ENEMY_DEF,600
+#DIM ENEMY_SPEED,600
+#DIM ENEMY_RESISTANT,600
+;魔法伤害的抗性
+;-1易伤（收到伤害翻倍） 0正常 1抵抗（收到的伤害减半） 2高抗（收到的伤害为原本的10%）
+;冰伤害为1，火伤害为2，电伤害为3，酸伤害为4，风伤害为5，暗伤害为6，光伤害为7,喜び伤害为8
+;敌人的魔法伤害抗性
+#DIM ENEMY_MAGIC_RESIST, 300, 10
+
+;每次所有勇者进行移动时更新地宫方建中的勇者数据，记录为勇者的编号
+;0号位表示数量
+;在使用的时候如果需要使用FOR 记得加一
+#DIM ENEMY_DUNGEON_LOCATION,10,10,600
+
+;勇者的状态数据，DEBUFF一类相关，前一变量为勇者的编号，后一个为勇者的具体状态编号
+#DIM ENEMY_STATE,600,300
+
+;俘虏列表
+#DIM SAVEDATA PRISONER_LIST, 50
+
+#DIM SAVEDATA DATE,10,10
+
+#DIMS TEXT_RETURN,100
+
+;战斗记录
+#DIMS BATTLE_LOG,300
+#DIM BATTLE_LOG_NUM
+#DIM FLAG_SHOW_BALLTE_LOG

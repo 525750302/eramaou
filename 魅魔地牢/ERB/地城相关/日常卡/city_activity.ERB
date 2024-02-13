@@ -1,0 +1,126 @@
+﻿;-------------------------------------------------
+;城市活动相关函数
+;-------------------------------------------------
+@CITY_ACTIVITY
+#DIM COUNT1
+#DIM COUNT2
+#DIM CHOICE
+#DIM MEMO_LINECOUNT
+
+$INPUT_LOOP
+MEMO_LINECOUNT = LINECOUNT
+
+PRINTL
+PRINTL
+CALL DRAWLINES_CENTER, "♦ 社会活動 ♦"
+
+ALIGNMENT CENTER
+
+FOR COUNT1, 0, 4
+    CALL PRINT_CARD_TOP , 20
+NEXT
+PRINTL
+
+LOCALS =  [400]祭り
+CALL PRINT_CARD_TEXT , 20, LOCALS
+
+LOCALS =  [401]施設改善
+IF FLAG:俘虏数量 < 3
+    CALL PRINT_CARD_BUTTON , 20, LOCALS, 0
+ELSE
+    CALL PRINT_CARD_TEXT , 20, LOCALS
+ENDIF
+
+LOCALS =  [402]装備製造
+IF FLAG:俘虏数量 < 3
+    CALL PRINT_CARD_BUTTON , 20, LOCALS, 0
+ELSE
+    CALL PRINT_CARD_TEXT , 20, LOCALS
+ENDIF
+
+LOCALS =  [403]--
+IF FLAG:俘虏数量 < 1
+    CALL PRINT_CARD_BUTTON , 20, LOCALS, 0
+ELSE
+    CALL PRINT_CARD_TEXT , 20, LOCALS
+ENDIF
+
+PRINTL
+
+FOR COUNT1, 0, 4
+    CALL PRINT_CARD_DOWN , 20
+NEXT
+PRINTL
+
+PRINTL
+ALIGNMENT LEFT
+
+CALL INPUT_SELECT, 1,400,401,402,403
+CHOICE = RESULT
+
+SELECTCASE CHOICE
+    CASE 400
+        LOCAL = (100 + DAY)/100
+        PRINTFORML すべてのモンスターが {LOCAL} 回レベルアップする
+        PRINTFORML 実行するか？
+        PRINTFORML [0] はい
+        PRINTFORML [1] いいえ
+        INPUT
+        IF RESULT == 0
+            FOR COUNT1, 0, CHARANUM
+                FOR COUNT2, 0, LOCAL
+                    CALL SUCCUBUS_LV_UP, COUNT1
+                    BASE:COUNT1:精液 = 0
+                NEXT
+            NEXT
+            RETURN
+        ELSE
+            CLEARLINE LINECOUNT - MEMO_LINECOUNT
+            GOTO INPUT_LOOP
+        ENDIF
+
+    CASE 401
+        CALL SELECT_PRISONER, 3
+        IF RESULT > 0
+            FOR COUNT1, 0, 3
+                CALL DEL_PRISONER, RESULT:COUNT1
+            NEXT
+
+            FOR COUNT1, DUNGEON_START_X, DUNGEON_END_X
+                FOR COUNT2 , DUNGEON_START_Y, DUNGEON_END_Y
+                    DUNGEON_LEVEL:COUNT1:COUNT2 += 1
+                NEXT
+            NEXT
+            RETURN
+        ELSE
+            CLEARLINE LINECOUNT - MEMO_LINECOUNT
+            GOTO INPUT_LOOP
+        ENDIF
+        
+    CASE 402
+        ;CALL SELECT_PRISONER, 3
+        ;IF RESULT > 0
+        ;    FOR COUNT1, 0, 3
+        ;        CALL DEL_PRISONER, RESULT:COUNT1
+        ;    NEXT
+        ;    CALL MAKE_WEAPON
+        ;    RETURN
+        ;ELSE
+        ;    CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        ;    GOTO INPUT_LOOP
+        ;ENDIF
+    CASE 403
+        CALL SELECT_PRISONER, 0
+        FOR COUNT1, 0, RESULT
+            LOCAL = 0
+            TRYCALLFORM ENEMY_STAR_NUM_{PRISONER_LIST:COUNT1}
+            LOCAL = RESULT
+            FLAG:水晶 += LOCAL * FLAG:行刑效率
+            CALL DEL_PRISONER, RESULT:COUNT1
+        NEXT
+        RETURN
+ENDSELECT
+
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+GOTO INPUT_LOOP
+

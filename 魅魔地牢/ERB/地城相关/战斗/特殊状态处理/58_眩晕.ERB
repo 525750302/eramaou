@@ -1,0 +1,83 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;眩暈为双方都有的状态属性。失去下一次行动机会，每次晕眩减少眩暈耐性的数值
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_58, ARG
+SIF ARG <= 0
+    RETURN
+LOCAL = ENEMY_STATE:ARG:58
+RETURN LOCAL
+
+;--------------------------------
+;返还モンスター的状态数值
+@CHECK_SUCCUBUS_STATE_58, ARG
+SIF ARG<0
+    RETURN 
+LOCAL = CFLAG:ARG:58
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_58, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+
+ENEMY_STATE:ARG:58 = ENEMY_STATE:ARG:58 + ARG:1
+
+;--------------------------------
+;增加状态数值
+;ARG为モンスター的编号 ARG:1为增加的数值
+@ADD_SUCCUBUS_STATE_58, ARG , ARG:1
+SIF ARG < 0
+    RETURN
+
+CFLAG:ARG:58 = CFLAG:ARG:58 + ARG:1
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;失去下一次行动机会，每次晕眩减少眩暈耐性的数值
+@DECREASE_ENEMY_STATE_58, ARG
+#DIMS ENEMY_NAME
+#DIM ENEMY_RACE
+#DIMS TARGET_NAME
+SIF ARG <= 0
+    RETURN
+    
+CALL RESET_TEXT_RETURN
+ENEMY_RACE = ENEMY:(ARG)
+TRYCALLFORM ENEMY_NAME_{ENEMY_RACE}
+IF TEXT_RETURN:0 !=""
+    ENEMY_NAME = %TEXT_RETURN:0%
+ENDIF
+
+
+LOCALS = %ENEMY_NAME%が一時的に動かなくなった
+CALL ADD_BATTLE_LOG, LOCALS
+ENEMY_STATE:ARG:58 = MAX(0, ENEMY_STATE:ARG:58 - 1)
+
+RETURN 
+
+
+@DECREASE_SUCCUBUS_STATE_58, ARG
+#DIMS SUCCUBUS_NAME
+CALL RESET_TEXT_RETURN
+SIF ARG <= 0
+    RETURN
+
+CALL CALL_SUCCUBUS_NAME, ARG, 0
+SUCCUBUS_NAME = %TEXT_RETURN:0%
+
+LOCALS = %SUCCUBUS_NAME%が一時的に動かなくなった
+CALL ADD_BATTLE_LOG, LOCALS
+
+CFLAG:ARG:58 = MAX(0, CFLAG:ARG:58 - 1)
+
+RETURN 

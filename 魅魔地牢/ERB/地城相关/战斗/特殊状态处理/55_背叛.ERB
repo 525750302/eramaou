@@ -1,0 +1,40 @@
+﻿;-------------------------------------------------
+;特殊状态相关的处理函数
+;包括增加状态数值的 ADD_ENEMY_STATE_XXX 与 ADD_SUCCUBUS_STATE_XXX
+;减少状态数值的 DECREASE_ENEMY_STATE_XXX 与 DECREASE_SUCCUBUS_STATE_XXX
+;返还状态数值的 CHECK_ENEMY_STATE_XXX 与 CHECK_SUCCUBUS_STATE_XXX
+;注意事项：有些状态不能过被减少，有些状态只有勇者拥有。大部分状态效果的发动和结算在减少状态的函数中，但是对于遅い等会影响属性的状态在增加函数中也有可能会发动
+;裏切为勇者独有的属性
+;-------------------------------------------------
+;返还勇者的状态数值
+@CHECK_ENEMY_STATE_55, ARG
+LOCAL = ENEMY_STATE:ARG:55
+RETURN LOCAL
+
+;--------------------------------
+;增加状态数值
+;ARG为勇者的编号 ARG:1为增加的数值
+@ADD_ENEMY_STATE_55, ARG , ARG:1
+SIF ARG <= 0
+    RETURN
+
+ENEMY_STATE:ARG:55 = ENEMY_STATE:ARG:55 + ARG:1
+
+
+;--------------------------------
+;减少状态数值
+;大部分状态的效果处理在这里完成
+;不同状态减少的方式不同
+;根据输入的参数决定攻撃力的变更方式
+;ARG:1为输入的伤害 由于执行该函数之前已经进行了是否为友军的判断 此处只进行翻倍处理
+;对友方造成的伤害翻倍并且每次发动-1
+@DECREASE_ENEMY_STATE_55, ARG, ARG:1
+#DIM DAMEGE
+SIF ARG <= 0
+    RETURN
+DAMEGE = ARG:1
+
+DAMEGE = DAMEGE * 2
+ENEMY_STATE:ARG:55 = ENEMY_STATE:ARG:55 - 1
+
+RETURN DAMEGE

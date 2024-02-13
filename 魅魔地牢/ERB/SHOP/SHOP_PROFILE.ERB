@@ -1,0 +1,897 @@
+﻿;-------------------------------------------------
+;角色定制
+;-------------------------------------------------
+@CHARA_MANUAL, ARG, ARG:1, ARGS
+;解説、弱点、性格、難易度、助手能力表示
+CALL PROFILE, ARG, ARG:1, ARGS
+
+IF FLAG:オープニング
+	CALL PRINT_STR, "NOBUTTON_这様可以吗？（3在設定後也会随机属性）_L_"
+	CALL PRINT_STR, "[ 0]是　_NOBUTTON_[×]否　_[ 2]随机属性　[ 3]素質的固定与除外_L_"
+
+	CALL INPUT_SELECT, 1, 2, 3
+ELSE
+	PRINTFORML [ 0]是　[ 1]否　[ 2]随机属性　[ 3]素質的固定与除外
+
+	CALL INPUT_SELECT, 5
+ENDIF
+
+SELECTCASE RESULT
+CASE 0
+	RETURN 1
+CASE 1
+	;紹介文既読フラグOFF
+	CLEARBIT FLAG:状況判定, 12
+	RETURN 0
+CASE 3
+	CALL FIX_TALENT
+ENDSELECT
+
+;表示されていたキャラを白紙に戻す
+DELCHARA CHARANUM-1
+CLEARLINE LINECOUNT - TFLAG:LINECOUNT_PROFILE
+RESTART
+
+@PROFILE, ARG, ARG:1, ARGS
+#DIM LCOUNT
+#DIM LCOUNT2
+#DIM MEMO_TARGET
+#DIM MEMO_MASTER
+;キャラメイクの時の固定素質
+#DIMS TALENT_FIX
+;キャラメイクの時の除外素質
+#DIMS TALENT_RMV
+
+ADDCHARA ARG
+
+REDRAW 0
+
+MEMO_TARGET = TARGET
+
+TARGET = CHARANUM-1
+
+SIF CALLNAME:TARGET == ""
+	CALLNAME:TARGET = %NAME:TARGET%
+
+;男、女の判定
+IF ARG:1 == 0
+SELECTCASE PENIS(TARGET)
+CASE 0
+	TALENT:女性 = 1
+CASEELSE
+	TALENT:女性 = 0
+ENDSELECT
+ELSE
+SELECTCASE PREPARE_CHESS_SEX
+CASE 0
+	TALENT:女性 = 1
+	TALENT:男性 = 0
+CASEELSE
+	TALENT:女性 = 0
+	TALENT:男性 = 1
+ENDSELECT
+ENDIF
+
+IF CEVENT("固定：処女", MASTER) && TALENT:男性 == 0
+	TALENT:処女 = 1
+ELSEIF CEVENT("除外：処女", MASTER) && TALENT:男性 == 0
+	TALENT:処女 = 0
+ENDIF
+IF CEVENT("固定：童貞", MASTER) && PENIS(TARGET)
+	TALENT:童貞 = 1
+ELSEIF CEVENT("除外：童貞", MASTER) && PENIS(TARGET)
+	TALENT:童貞 = 0
+ENDIF
+IF CEVENT("固定：性経験皆無", MASTER)
+	SIF PENIS(TARGET)
+		TALENT:童貞 = 1
+	SIF TALENT:男性 == 0
+		TALENT:処女 = 1
+ENDIF
+
+;３サイズ設定に絡むもの
+IF CEVENT("固定：苗条", MASTER)
+	TALENT:苗条 = 1
+	TALENT:豐腴 = 0
+ELSEIF CEVENT("除外：苗条", MASTER)
+	TALENT:苗条 = 0
+ELSEIF CEVENT("固定：豐腴", MASTER)
+	TALENT:豐腴 = 1
+	TALENT:苗条 = 0
+ELSEIF CEVENT("除外：豐腴", MASTER)
+	TALENT:豐腴 = 0
+ENDIF
+
+CALL CHANGE_TALENT, TARGET
+CALL SETFLAG, "識別番号", TARGET
+CALL RESET_EXP_GAIN, TARGET
+CALL GET_EXABL, TARGET
+CALL GET_EXTALENT, TARGET
+CALL SET_3SIZE, TARGET
+CALL SETFLAG, "陰毛と腋毛", TARGET
+CALL SETFLAG, "阴茎詳細設定", TARGET
+
+;身長の固定と除外は先に行う
+IF CEVENT("固定：高大", MASTER)
+	CALL CALC, "高大化", TARGET
+ELSEIF CEVENT("除外：高大", MASTER)
+	SIF TALENT:高大
+		CALL CALC, "普通体型化", TARGET
+ELSEIF CEVENT("固定：娇小", MASTER)
+	CALL CALC, "娇小化", TARGET
+ELSEIF CEVENT("除外：娇小", MASTER)
+	SIF TALENT:娇小
+		CALL CALC, "普通体型化", TARGET
+ENDIF
+
+;３サイズ設定に絡むもの
+IF CEVENT("除外：苗条", MASTER)
+	IF COND("苗条")
+		FOR LCOUNT, 0, 100
+			SIF COND("苗条") == 0
+				BREAK
+			BASE:腰圍 += BASE:身高*2/100
+		NEXT
+	ENDIF
+ELSEIF CEVENT("除外：豐腴", MASTER)
+	IF COND("豐腴")
+		FOR LCOUNT, 0, 100
+			SIF COND("豐腴") == 0
+				BREAK
+			BASE:腰圍 -= BASE:身高*2/100
+		NEXT
+	ENDIF
+ENDIF
+
+;キャラメイク時の素質固定or除外を行う
+VARSET LOCALS
+SPLIT TEXTS("固定可能な素質"), "/", LOCALS
+
+FOR LCOUNT, 0, 100
+	SIF LOCALS:LCOUNT == ""
+		BREAK
+
+	TALENT_FIX = 固定：%LOCALS:LCOUNT%
+	TALENT_RMV = 除外：%LOCALS:LCOUNT%
+
+	;固定素質
+	IF CEVENT(TALENT_FIX, MASTER)
+		SELECTCASE LOCALS:LCOUNT
+		CASE "短小"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:阴茎 = 0
+		CASE "並根"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:阴茎 = 1
+		CASE "巨根"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:阴茎 = 2
+		CASE "馬根"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:阴茎 = 3
+		CASE "真性包茎"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:包茎 = 2
+		CASE "假性包茎"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:包茎 = 1
+		CASE "露茎"
+			SIF PENIS(TARGET) == 0
+				CONTINUE
+			TALENT:包茎 = 0
+		CASE "貧乳"
+			SIF TALENT:男性
+				CONTINUE
+			CALL CALC, "貧乳化", TARGET
+		CASE "並乳"
+			SIF TALENT:男性
+				CONTINUE
+			CALL CALC, "並乳化", TARGET
+		CASE "巨乳"
+			SIF TALENT:男性
+				CONTINUE
+			CALL CALC, "巨乳化", TARGET
+		CASE "爆乳"
+			SIF TALENT:男性
+				CONTINUE
+			CALL CALC, "爆乳化", TARGET
+		CASE "超乳"
+			SIF TALENT:男性
+				CONTINUE
+			CALL CALC, "超乳化", TARGET
+		CASE "小尻"
+			SIF COND("小尻")
+				CONTINUE
+
+			TALENT:巨尻 = 0
+			FOR LCOUNT2, 0, 100
+				SIF COND("小尻")
+					BREAK
+				BASE:臀圍 -= BASE:身高*2/100
+			NEXT
+			TALENT:小尻 = 1
+		CASE "並尻"
+			IF COND("小尻")
+				TALENT:小尻 = 0
+				FOR LCOUNT2, 0, 100
+					SIF COND("小尻") == 0
+						BREAK
+					BASE:臀圍 += BASE:身高*2/100
+				NEXT
+			ELSEIF COND("巨尻")
+				TALENT:巨尻 = 0
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") == 0
+						BREAK
+					BASE:臀圍 -= BASE:身高*2/100
+				NEXT
+			ENDIF
+		CASE "巨尻"
+			SIF COND("巨尻") == 1
+				CONTINUE
+
+			IF COND("巨尻") == 0
+				TALENT:小尻 = 0
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻")
+						BREAK
+					BASE:臀圍 += BASE:身高*2/100
+				NEXT
+			ELSE
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") <= 1
+						BREAK
+					BASE:臀圍 -= BASE:身高*2/100
+				NEXT
+			ENDIF
+			TALENT:巨尻 = 1
+		CASE "爆尻"
+			SIF COND("巨尻") == 2
+				CONTINUE
+
+			IF COND("巨尻") <= 1
+				TALENT:小尻 = 0
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") >= 2
+						BREAK
+					BASE:臀圍 += BASE:身高*2/100
+				NEXT
+			ELSE
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") <= 2
+						BREAK
+					BASE:臀圍 -= BASE:身高*2/100
+				NEXT
+			ENDIF
+			TALENT:巨尻 = 2
+		CASE "超尻"
+			SIF COND("巨尻") == 3
+				CONTINUE
+
+			TALENT:小尻 = 0
+			FOR LCOUNT2, 0, 100
+				SIF COND("巨尻") == 3
+					BREAK
+				BASE:臀圍 += BASE:身高*2/100
+			NEXT
+			TALENT:巨尻 = 3
+		CASE "褐色肌"
+			TALENT:肤色 = 1
+		CASE "色白"
+			TALENT:肤色 = 2
+		CASE "青肌"
+			TALENT:肤色 = 3
+		CASE "萝莉"
+			TALENT:外見年齢 = 1
+		CASE "少女"
+			TALENT:外見年齢 = 2
+		CASE "大姐姐"
+			TALENT:外見年齢 = 3
+		CASE "大人"
+			TALENT:外見年齢 = 4
+		;オトコでないなら追加
+		CASE "母乳体質", "子宮性感"
+			SIF TALENT:男性 == 0
+				TALENT:(LOCALS:LCOUNT) = 1
+		;ペニスが無いなら追加
+		CASE "絶頂失禁体質"
+			SIF PENIS(TARGET) == 0
+				TALENT:(LOCALS:LCOUNT) = 1
+		;純粋追加
+		CASE "腸液分泌体質", "嘔吐反射耐性", "拡張適性", "喉性感", "尿道性感", "气味弱点", "発情体質"
+			TALENT:(LOCALS:LCOUNT) = 1
+		ENDSELECT
+	ELSEIF CEVENT(TALENT_RMV, MASTER)
+		SELECTCASE LOCALS:LCOUNT
+		CASE "短小"
+			SIF PENIS(TARGET) == 0 || SIZE("阴茎", TARGET) != 0
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 8, 9
+				TALENT:阴茎 = 3
+			CASE 6, 7
+				TALENT:阴茎 = 2
+			CASEELSE
+				TALENT:阴茎 = 1
+			ENDSELECT
+		CASE "並根"
+			SIF PENIS(TARGET) == 0 || SIZE("阴茎", TARGET) != 1
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 8, 9
+				TALENT:阴茎 = 3
+			CASE 4 TO 7
+				TALENT:阴茎 = 2
+			CASEELSE
+				TALENT:阴茎 = 0
+			ENDSELECT
+		CASE "巨根"
+			SIF PENIS(TARGET) == 0 || SIZE("阴茎", TARGET) != 2
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 7 TO 9
+				TALENT:阴茎 = 3
+			CASE 3 TO 6
+				TALENT:阴茎 = 1
+			CASEELSE
+				TALENT:阴茎 = 0
+			ENDSELECT
+		CASE "馬根"
+			SIF PENIS(TARGET) == 0 || SIZE("阴茎", TARGET) != 3
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 5 TO 9
+				TALENT:阴茎 = 2
+			CASE 1 TO 4
+				TALENT:阴茎 = 1
+			CASEELSE
+				TALENT:阴茎 = 0
+			ENDSELECT
+
+		CASE "真性包茎"
+			SIF PENIS(TARGET) == 0 || COND("真性包茎") == 0
+				CONTINUE
+
+			SIF RAND:3
+				TALENT:包茎 = 1
+		CASE "假性包茎"
+			SIF PENIS(TARGET) == 0 || COND("假性包茎") == 0
+				CONTINUE
+
+			SIF RAND:3
+				TALENT:包茎 = 2
+		CASE "露茎"
+			SIF PENIS(TARGET) == 0 || TALENT:包茎
+				CONTINUE
+			IF RAND:3
+				TALENT:包茎 = 1
+			ELSE
+				TALENT:包茎 = 2
+			ENDIF
+		CASE "貧乳"
+			SIF TALENT:男性 || TALENT:貧乳 == 0
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 9
+				CALL CALC, "超乳化", TARGET
+			CASE 8
+				CALL CALC, "爆乳化", TARGET
+			CASE 7
+				CALL CALC, "巨乳化", TARGET
+			CASEELSE
+				CALL CALC, "並乳化", TARGET
+			ENDSELECT
+		CASE "並乳"
+			SIF TALENT:男性 || TALENT:貧乳 || TALENT:巨乳
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 8, 9
+				CALL CALC, "超乳化", TARGET
+			CASE 5 TO 7
+				CALL CALC, "爆乳化", TARGET
+			CASE 2 TO 4
+				CALL CALC, "巨乳化", TARGET
+			CASEELSE
+				CALL CALC, "貧乳化", TARGET
+			ENDSELECT
+		CASE "巨乳"
+			SIF TALENT:男性 || TALENT:巨乳 != 1
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 7 TO 9
+				CALL CALC, "超乳化", TARGET
+			CASE 4 TO 6
+				CALL CALC, "爆乳化", TARGET
+			CASE 0
+				CALL CALC, "貧乳化", TARGET
+			CASEELSE
+				CALL CALC, "並乳化", TARGET
+			ENDSELECT
+		CASE "爆乳"
+			SIF TALENT:男性 || TALENT:巨乳 != 2
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 7 TO 9
+				CALL CALC, "超乳化", TARGET
+			CASE 4 TO 6
+				CALL CALC, "巨乳化", TARGET
+			CASE 0
+				CALL CALC, "貧乳化", TARGET
+			CASEELSE
+				CALL CALC, "並乳化", TARGET
+			ENDSELECT
+		CASE "超乳"
+			SIF TALENT:男性 || TALENT:巨乳 != 3
+				CONTINUE
+
+			SELECTCASE RAND:10
+			CASE 7 TO 9
+				CALL CALC, "爆乳化", TARGET
+			CASE 4 TO 6
+				CALL CALC, "巨乳化", TARGET
+			CASE 0
+				CALL CALC, "貧乳化", TARGET
+			CASEELSE
+				CALL CALC, "並乳化", TARGET
+			ENDSELECT
+		CASE "小尻"
+			SIF COND("小尻") == 0
+				CONTINUE
+
+			TALENT:巨尻 = 0
+			FOR LCOUNT2, 0, 100
+				SIF COND("小尻") == 0
+					BREAK
+				BASE:臀圍 += BASE:身高*3/100
+			NEXT
+			CALL SETFLAG, "臀圍設定", TARGET
+		CASE "並尻"
+			SIF COND("小尻") || COND("巨尻")
+				CONTINUE
+			IF RAND:3 == 0
+				FOR LCOUNT2, 0, 100
+					SIF COND("小尻")
+						BREAK
+					BASE:臀圍 -= BASE:身高*3/100
+				NEXT
+			ELSE
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻")
+						BREAK
+					BASE:臀圍 += BASE:身高*3/100
+				NEXT
+			ENDIF
+			CALL SETFLAG, "臀圍設定", TARGET
+		CASE "巨尻"
+			SIF COND("巨尻") != 1
+				CONTINUE
+
+			IF RAND:2
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") != 1
+						BREAK
+					BASE:臀圍 += BASE:身高*3/100
+				NEXT
+			ELSE
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") != 1
+						BREAK
+					BASE:臀圍 -= BASE:身高*3/100
+				NEXT
+			ENDIF
+			CALL SETFLAG, "臀圍設定", TARGET
+		CASE "爆尻"
+			SIF COND("巨尻") != 2
+				CONTINUE
+
+			IF RAND:2
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") != 2
+						BREAK
+					BASE:臀圍 += BASE:身高*3/100
+				NEXT
+			ELSE
+				FOR LCOUNT2, 0, 100
+					SIF COND("巨尻") != 2
+						BREAK
+					BASE:臀圍 += BASE:身高*3/100
+				NEXT
+			ENDIF
+			CALL SETFLAG, "臀圍設定", TARGET
+		CASE "超尻"
+			SIF COND("巨尻") != 3
+				CONTINUE
+
+			FOR LCOUNT2, 0, 100
+				SIF COND("巨尻") < 3
+					BREAK
+				BASE:臀圍 -= BASE:身高*3/100
+			NEXT
+			CALL SETFLAG, "臀圍設定", TARGET
+		CASE "褐色肌"
+			SIF	TALENT:肤色 == 1
+				TALENT:肤色 = 0
+		CASE "色白"
+			SIF	TALENT:肤色 == 2
+				TALENT:肤色 = 0
+		CASE "青肌"
+			SIF	TALENT:肤色 == 3
+				TALENT:肤色 = 0
+		CASE "萝莉"
+			SIF TALENT:外見年齢 == 1
+				TALENT:外見年齢 = 3
+		CASE "少女"
+			SIF TALENT:外見年齢 == 2
+				TALENT:外見年齢 = 3
+		CASE "大姐姐"
+			SIF TALENT:外見年齢 == 3
+				TALENT:外見年齢 = 2
+		CASE "大人"
+			SIF TALENT:外見年齢 == 4
+				TALENT:外見年齢 = 3
+		;純粋除外
+		CASE "腸液分泌体質", "嘔吐反射耐性", "拡張適性", "喉性感", "尿道性感", "气味弱点", "母乳体質", "子宮性感", "絶頂失禁体質", "発情体質"
+			SIF SET_EXTALENT(LOCALS:LCOUNT) == 0
+				TALENT:(LOCALS:LCOUNT) = 0
+		ENDSELECT
+	ENDIF
+NEXT
+
+;キャラメイク専用素質の消去
+TALENT:苗条 = 0
+TALENT:豐腴 = 0
+
+CALL CHECK_FAV_POSITION, TARGET
+;衣装の設定
+CALL SET_COORDINATE, TARGET, NO:TARGET, "内衣も含める"
+CALL SET_COUNTER_BASE
+CALL SETFLAG, "属性", TARGET
+
+SIF TALENT:好色
+	BASE:欲求不満 += 50 + RAND:51
+	
+;名前変更した？
+IF ARGS != ""
+	NAME:TARGET = %ARGS%
+	CALLNAME:TARGET = %NAME:TARGET%
+ENDIF
+
+IF FLAG:オープニング == 0
+	IF COND("紹介文既読") == 0
+		CALL VARSET_PROFILE
+		CALL EVENT_PROFILE, "勧誘"
+
+		;紹介文既読フラグON
+		SETBIT FLAG:状況判定, 12
+	ENDIF
+	;勧誘イベント内でキャラの数値を変更させていた場合
+	FOR LCOUNT, 0, VARSIZE("CFLAG")
+		SIF CFLAG:0:LCOUNT >= 0
+			CFLAG:LCOUNT = CFLAG:0:LCOUNT
+	NEXT
+	FOR LCOUNT, 0, VARSIZE("BASE")
+		SIF BASE:0:LCOUNT >= 0
+			BASE:LCOUNT = BASE:0:LCOUNT
+	NEXT
+	FOR LCOUNT, 0, VARSIZE("TALENT")
+		SIF TALENT:0:LCOUNT >= 0
+			TALENT:LCOUNT = TALENT:0:LCOUNT
+	NEXT
+	FOR LCOUNT, 0, VARSIZE("ABL")
+		SIF ABL:0:LCOUNT >= 0
+			ABL:LCOUNT = ABL:0:LCOUNT
+	NEXT
+	FOR LCOUNT, 0, VARSIZE("EXP")
+		SIF EXP:0:LCOUNT >= 0
+			EXP:LCOUNT = EXP:0:LCOUNT
+	NEXT
+	FOR LCOUNT, 0, VARSIZE("CSTR")
+		SIF CSTR:0:LCOUNT != "-1"
+			CSTR:LCOUNT = %CSTR:0:LCOUNT%
+	NEXT
+ENDIF
+
+TFLAG:LINECOUNT_PROFILE = LINECOUNT
+
+IF ARG:1 == 1
+BASE:CHARA_NO:攻撃力 = PREPARE_CHESS_ATT
+BASE:CHARA_NO:生命值 = PREPARE_CHESS_HEA
+
+VARSET LOCALS
+
+SPLIT PREPARE_CHESS_SKILL, "/", LOCALS
+
+FOR LCOUNT, 0, 100
+SIF LOCALS:LCOUNT == ""
+BREAK
+
+TALENT:CHARA_NO:(LOCALS:LCOUNT) = 1
+NEXT
+ENDIF
+
+CALL PRINT_STATE, TARGET, "正常"
+
+;初期パラをここで記録
+CALL SETFLAG, "初期变量記録", TARGET
+
+TARGET = MEMO_TARGET
+
+
+;主人のCEVENTで固定素質と除外素質を記録する
+@FIX_TALENT
+#DIM MEMO_LINECOUNT
+#DIM LCOUNT
+#DIM NUM_TALENT
+#DIM ABL_SAMON
+#DIM CHOICE
+#DIMS TALENT_FIX
+#DIMS TALENT_RMV
+
+REDRAW 0
+
+;固定or除外できる総数
+ABL_SAMON = 3
+
+MEMO_LINECOUNT = LINECOUNT
+PRINTL 
+PRINTFORML 从特定的素質选择最多３個来进固定or除外、可以进行角色定制操作
+PRINTFORML 部分素质会在同時除外/選択時会发生冲突
+CALL PRINT_STRL, "固定的素質用_緑_緑色_、除外的素質用_青_青色_表示"
+CALL PRINT_STRL, "那么就从以下的素质里选择吧。選択顺序是从_緑_固定_→_青_除外_→不选择 这様変化的"
+PRINTL 
+
+VARSET LOCALS
+SPLIT TEXTS("固定可能な素質"), "/", LOCALS
+
+NUM_TALENT = 0
+FOR LCOUNT, 0, 100
+	SIF LOCALS:LCOUNT == ""
+		BREAK
+
+	TALENT_FIX = 固定：%LOCALS:LCOUNT%
+	TALENT_RMV = 除外：%LOCALS:LCOUNT%
+
+	SIF CEVENT(TALENT_FIX, MASTER)
+		SETCOLOR DEF_COLOR("緑")
+	SIF CEVENT(TALENT_RMV, MASTER)
+		SETCOLOR DEF_COLOR("青")
+
+	PRINTFORM  [{LCOUNT, 2}]%TEXT_LJ(LOCALS:LCOUNT, 14)%
+
+	RESETCOLOR
+
+	NUM_TALENT += 1
+	SIF NUM_TALENT%4 == 0
+		PRINTL 
+NEXT
+SIF NUM_TALENT%4
+	PRINTL 
+PRINTL 
+PRINTFORML  [99]重置固定与除外
+PRINTFORML [100]这様就好
+
+CALL INPUT_SELECT, NUM_TALENT, 99, 100
+
+CHOICE = RESULT
+
+SELECTCASE CHOICE
+CASE 100
+	RETURN 1
+CASE 99
+	CALL DEL_CEVENT_GROUP, "固定", MASTER
+	CALL DEL_CEVENT_GROUP, "除外", MASTER
+CASEELSE
+	;まずは固定or除外or指定なし、の判定
+	TALENT_FIX = 固定：%LOCALS:CHOICE%
+	TALENT_RMV = 除外：%LOCALS:CHOICE%
+	;固定→除外
+	IF CEVENT(TALENT_FIX, MASTER)
+		CALL DEL_CEVENT, TALENT_FIX, MASTER
+
+		SELECTCASE LOCALS:CHOICE
+		;除外できない要素かどうか
+		CASE "性経験皆無"
+		CASEELSE
+			CALL SET_CEVENT, TALENT_RMV, MASTER
+		ENDSELECT
+	;除外→指定なし
+	ELSEIF CEVENT(TALENT_RMV, MASTER)
+		CALL DEL_CEVENT, TALENT_RMV, MASTER
+	;指定なし→固定
+	ELSE
+		;同居できない素質の固定を消す
+		SELECTCASE LOCALS:CHOICE
+		CASE "処女", "童貞"
+			CALL DEL_CEVENT, "固定：性経験皆無", MASTER
+			CALL DEL_CEVENT, "除外：性経験皆無", MASTER
+		CASE "性経験皆無"
+			CALL DEL_CEVENT, "固定：処女", MASTER
+			CALL DEL_CEVENT, "固定：童貞", MASTER
+			CALL DEL_CEVENT, "除外：処女", MASTER
+			CALL DEL_CEVENT, "除外：童貞", MASTER
+		CASE "扶她", "絶頂失禁体質"
+			CALL DEL_CEVENT, "固定：扶她", MASTER
+			CALL DEL_CEVENT, "固定：絶頂失禁体質", MASTER
+			CALL DEL_CEVENT, "除外：扶她", MASTER
+			CALL DEL_CEVENT, "除外：絶頂失禁体質", MASTER
+		CASE "短小", "並根", "巨根", "馬根"
+			CALL DEL_CEVENT, "固定：短小", MASTER
+			CALL DEL_CEVENT, "固定：並根", MASTER
+			CALL DEL_CEVENT, "固定：巨根", MASTER
+			CALL DEL_CEVENT, "固定：馬根", MASTER
+			CALL DEL_CEVENT, "除外：短小", MASTER
+			CALL DEL_CEVENT, "除外：並根", MASTER
+			CALL DEL_CEVENT, "除外：巨根", MASTER
+			CALL DEL_CEVENT, "除外：馬根", MASTER
+		CASE "真性包茎", "假性包茎", "露茎"
+			CALL DEL_CEVENT, "固定：真性包茎", MASTER
+			CALL DEL_CEVENT, "固定：假性包茎", MASTER
+			CALL DEL_CEVENT, "固定：露茎", MASTER
+			CALL DEL_CEVENT, "除外：真性包茎", MASTER
+			CALL DEL_CEVENT, "除外：假性包茎", MASTER
+			CALL DEL_CEVENT, "除外：露茎", MASTER
+		CASE "高大", "娇小"
+			CALL DEL_CEVENT, "固定：高大", MASTER
+			CALL DEL_CEVENT, "固定：娇小", MASTER
+			CALL DEL_CEVENT, "除外：高大", MASTER
+			CALL DEL_CEVENT, "除外：娇小", MASTER
+		CASE "苗条", "豐腴"
+			CALL DEL_CEVENT, "固定：苗条", MASTER
+			CALL DEL_CEVENT, "固定：豐腴", MASTER
+			CALL DEL_CEVENT, "除外：苗条", MASTER
+			CALL DEL_CEVENT, "除外：豐腴", MASTER
+		CASE "貧乳", "並乳", "巨乳", "爆乳", "超乳"
+			CALL DEL_CEVENT, "固定：貧乳", MASTER
+			CALL DEL_CEVENT, "固定：並乳", MASTER
+			CALL DEL_CEVENT, "固定：巨乳", MASTER
+			CALL DEL_CEVENT, "固定：爆乳", MASTER
+			CALL DEL_CEVENT, "固定：超乳", MASTER
+			CALL DEL_CEVENT, "除外：貧乳", MASTER
+			CALL DEL_CEVENT, "除外：並乳", MASTER
+			CALL DEL_CEVENT, "除外：巨乳", MASTER
+			CALL DEL_CEVENT, "除外：爆乳", MASTER
+			CALL DEL_CEVENT, "除外：超乳", MASTER
+		CASE "小尻", "並尻", "巨尻", "爆尻", "超尻"
+			CALL DEL_CEVENT, "固定：小尻", MASTER
+			CALL DEL_CEVENT, "固定：並尻", MASTER
+			CALL DEL_CEVENT, "固定：巨尻", MASTER
+			CALL DEL_CEVENT, "固定：爆尻", MASTER
+			CALL DEL_CEVENT, "固定：超尻", MASTER
+			CALL DEL_CEVENT, "除外：小尻", MASTER
+			CALL DEL_CEVENT, "除外：並尻", MASTER
+			CALL DEL_CEVENT, "除外：巨尻", MASTER
+			CALL DEL_CEVENT, "除外：爆尻", MASTER
+			CALL DEL_CEVENT, "除外：超尻", MASTER
+		CASE "褐色肌", "色白", "青肌"
+			CALL DEL_CEVENT, "固定：褐色肌", MASTER
+			CALL DEL_CEVENT, "固定：色白", MASTER
+			CALL DEL_CEVENT, "固定：青肌", MASTER
+			CALL DEL_CEVENT, "除外：褐色肌", MASTER
+			CALL DEL_CEVENT, "除外：色白", MASTER
+			CALL DEL_CEVENT, "除外：青肌", MASTER
+		CASE "萝莉", "少女", "大姐姐", "大人"
+			CALL DEL_CEVENT, "固定：萝莉", MASTER
+			CALL DEL_CEVENT, "固定：少女", MASTER
+			CALL DEL_CEVENT, "固定：大姐姐", MASTER
+			CALL DEL_CEVENT, "固定：大人", MASTER
+			CALL DEL_CEVENT, "除外：萝莉", MASTER
+			CALL DEL_CEVENT, "除外：少女", MASTER
+			CALL DEL_CEVENT, "除外：大姐姐", MASTER
+			CALL DEL_CEVENT, "除外：大人", MASTER
+		ENDSELECT
+
+		;既に選択可能個数分選択している？
+		IF STRCOUNTS(CSTR:MASTER:CEVENT, "固定：", "除外：") >= ABL_SAMON
+			PRINTFORMW 選择数超过了上限
+		;指定なし→固定
+		ELSE
+			CALL SET_CEVENT, TALENT_FIX, MASTER
+		ENDIF
+	ENDIF
+ENDSELECT
+
+CLEARLINE LINECOUNT - MEMO_LINECOUNT
+RESTART
+
+;キャラARGの素質や経験などを適切な値に再設定したり、ランダムで変化させたりする
+@CHANGE_TALENT, ARG
+#DIM LCOUNT
+;処女？
+IF TALENT:処女
+	TALENT:出産経験 = 0
+	EXP:Ｖ経験 = 0
+	EXP:Ｖ性交経験 = 0
+	EXP:腰靈活経験 = 0
+	EXP:Ｖ拡張経験 = 0
+	BASE:胎児の父親 = 0
+ELSEIF TALENT:男性 == 0
+	SIF EXP:Ｖ経験 == 0
+		EXP:Ｖ経験 = 1
+ENDIF
+;童貞？
+IF TALENT:童貞
+	EXP:Ｖ挿入経験 = 0
+ELSEIF PENIS(TARGET)
+	SIF EXP:Ｖ挿入経験 == 0
+		EXP:Ｖ挿入経験 = 1
+ENDIF
+;種族は？
+SIF CSTR:種族 == ""
+	CSTR:種族 = 人类
+
+FOR LCOUNT, 0, 100
+	IF CEVENT("固定：性経験皆無", MASTER)
+		EXP:LCOUNT = 0
+	;所持している経験の揺らぎ
+	ELSEIF EXP:LCOUNT
+		EXP:LCOUNT = MAX(MULTIPLY(EXP:LCOUNT, 50 + (RAND:6 + RAND:6)*10), 1)
+	ENDIF
+NEXT
+EXP:Ｖ経験 = MAX(EXP:Ｖ経験, EXP:Ｖ性交経験, EXP:Ｖ拡張経験)
+EXP:Ａ経験 = MAX(EXP:Ａ経験, EXP:Ａ性交経験, EXP:Ａ拡張経験)
+
+;以下のランダム素質は一時保留
+;拡張適性はレア素質
+;SIF RAND:10 == 0
+;	TALENT:拡張適性 = 1
+;わーい母乳が出るぞ！（レア素質）
+;SIF TALENT:オトコ == 0 && TALENT:貧乳 == 0 && RAND:10 + (TALENT:巨乳 + 1)/2 >= 9
+;	TALENT:母乳体質 = 1
+;フェラ経験豊富だと嘔吐反射耐性が有るかも
+;SIF EXP:フェラ経験 + EXP:喉性交経験 >= MAX(50, RAND:300)
+;	TALENT:嘔吐反射耐性 = 1
+;喉性感
+;SIF TALENT:Ｍ性向*3 + ABL:Ｍ感覚 + GET_EXP_LV(EXP:フェラ経験) + GET_EXP_LV(EXP:喉性交経験) >= RAND:20
+;	TALENT:喉性感 = 1
+;子宮性感
+;SIF TALENT:オトコ == 0 && TALENT:Ｖ性向*3 + ABL:Ｖ感覚 + GET_EXP_LV(EXP:Ｖ経験) + GET_EXP_LV(EXP:Ｖ性交経験) >= RAND:20
+;	TALENT:子宮性感 = 1
+;尿道性感
+;SIF TALENT:倒錯的 + RAND:10 >= 9
+;	TALENT:尿道性感 = 1
+;においに弱い
+;IF (TALENT:動物耳 > 0)*3 + (TALENT:汚臭敏感 - TALENT:汚臭鈍感)*2 + (ABL:欲望 + 1)/2 + RAND:10 >= 9
+;	TALENT:においに弱い = 1
+;	TALENT:汚臭鈍感 = 0
+;ENDIF
+
+;拡張度の上限に応じて拡張度にぶれがある（上限側になりやすい）
+IF CONFIG("ＶＡ拡張の手動ＬＶＵＰ")
+	LOCAL = CALCF("Ｖ拡張の上限", TARGET)
+	SIF LOCAL > ABL:Ｖ拡張
+		ABL:Ｖ拡張 = LIMIT(RAND:LOCAL + RAND:2 + RAND:2, ABL:Ｖ拡張, LOCAL)
+
+	LOCAL = CALCF("Ａ拡張の上限", TARGET)
+	SIF LOCAL > ABL:Ａ拡張
+		ABL:Ａ拡張 = LIMIT(RAND:LOCAL + RAND:2 + RAND:2, ABL:Ａ拡張, LOCAL)
+ELSE
+	ABL:Ｖ拡張 = CALCF("Ｖ拡張の上限", TARGET)
+	ABL:Ａ拡張 = CALCF("Ａ拡張の上限", TARGET)
+ENDIF
+
+;精液に弱いのも良いですよね
+IF TALENT:精液弱点 == 0 && ABL:精液毒素 > RAND:5
+	IF EXP:口交経験 && RANDIF(1, EXP:Ｖ性交経験, EXP:Ａ性交経験)
+		TALENT:精液弱点 = 1p0
+	ELSEIF EXP:Ｖ性交経験 && RANDIF(1, EXP:Ａ性交経験)
+		TALENT:精液弱点 = 1p1
+	ELSEIF EXP:Ａ性交経験
+		TALENT:精液弱点 = 1p2
+	ENDIF
+ENDIF
+
+CALL SETFLAG, "属性", TARGET

@@ -1,0 +1,751 @@
+﻿;-------------------------------------------------
+;战斗相关的函数
+;-------------------------------------------------
+;战斗流程
+@BEGIN_FIGHT
+#DIM COUNT1
+#DIM COUNT2
+;进入地宫的勇者数
+;没有事件影响的情况下，每次会进入三个勇者
+#DIM AVILIBILE_ENEMY
+#DIM ENEMY_ENTER_X,600
+#DIM ENEMY_ENTER_Y,600
+#DIM ENEMY_NUM
+;勇者的行动计时器
+#DIM ENEMY_TIME_COUNTER,600
+#DIM ENEMY_ACTION,600
+#DIM ENEMY_SKILL_COUNTER,600
+;モンスター的行动计时器
+#DIM SUCCUBUS_NO
+#DIM SUCCUBUS_TIME_COUNTER,10,10
+#DIM SUCCUBUS_SKILL_COUNTER,10,10
+#DIM BOSSROOM_SUCCUBUS_TIME_COUNTER,3
+#DIM BOSSROOM_SUCCUBUS_SKILL_COUNTER,3
+#DIM SUCCUBUS_ACTION,10,10
+#DIM BOSS_ROOM_SUCCUBUS_ACTION,3
+#DIM SKILL_TIME
+
+ENEMY_NUM = NUM("勇者数量")
+PRINTFORML {ENEMY_NUM}
+AVILIBILE_ENEMY = 0
+
+;战斗开始前启动对全魔王城生效的后勤装置
+CALL ALL_ROOM_ACT,0,2,0
+
+CALL PRINT_DUNGEON, 2
+
+WHILE (CHECK_ENEMY() == 0) && (CHECK_MAOU() == 0)
+    AVILIBILE_ENEMY = MIN(AVILIBILE_ENEMY + 3, ENEMY_NUM + 1)
+    ;行动前对所有人物进行检查判断是否可以行动并且处理状态
+    FOR COUNT1,1,AVILIBILE_ENEMY
+        IF ENEMY:COUNT1 > 0
+            IF ENEMY_TIME_COUNTER:COUNT1 % ENEMY_SPEED:COUNT1 == 0
+                ENEMY_ACTION:COUNT1 = 1
+                ENEMY_TIME_COUNTER:COUNT1 = 0
+                ;回合开始时检查状态并结算是否眩暈
+                CALL CHECK_ENEMY_STATE,COUNT1,4
+                ;若眩暈则跳过一个回合
+                IF RESULT == 1
+                    ENEMY_ACTION:COUNT1 = 0
+                ENDIF
+                ;魔王在每个勇者行动之前发动的效果
+                CALL MAOU_ACT_PER_ENEMY_ROUND, COUNT1
+
+            ENDIF
+        ENDIF
+        ENEMY_TIME_COUNTER:COUNT1 += 1
+    NEXT
+    CALL CHECK_HP
+
+    FOR COUNT1,0,10
+        FOR COUNT2,0,10
+            IF ((SUCCUBUS_LOCATION:COUNT1:COUNT2) != -1) && (CFLAG:(SUCCUBUS_LOCATION:COUNT1:COUNT2):战斗不能 == 0)
+                IF SUCCUBUS_TIME_COUNTER:COUNT1:COUNT2 % BASE:(SUCCUBUS_LOCATION:COUNT1:COUNT2):速度 == 0
+                    ;检查モンスター是否可以行动多次
+                    CALL SUCCUBUS_ACTION_ABL, SUCCUBUS_LOCATION:COUNT1:COUNT2
+                    SUCCUBUS_ACTION:COUNT1:COUNT2 = RESULT
+                    SUCCUBUS_TIME_COUNTER:COUNT1:COUNT2 = 0
+                    ;回合开始时检查状态并结算是否眩暈
+                    CALL CHECK_SUCCUBUS_STATE,(SUCCUBUS_LOCATION:COUNT1:COUNT2),4
+                    ;若眩暈则跳过一个回合
+                    IF RESULT == 1
+                        SUCCUBUS_ACTION:COUNT1:COUNT2 = 0
+                    ENDIF
+                ENDIF
+            ENDIF
+            SUCCUBUS_TIME_COUNTER:COUNT1:COUNT2 += 1
+        NEXT
+    NEXT
+
+    FOR COUNT1,0,3
+        IF ((BOSSROOM_SUCCUBUS:COUNT1) != -1) && (CFLAG:(BOSSROOM_SUCCUBUS:COUNT1):战斗不能 == 0)
+            IF BOSSROOM_SUCCUBUS_TIME_COUNTER:COUNT1 % BASE:(BOSSROOM_SUCCUBUS:COUNT1):速度 == 0
+                CALL SUCCUBUS_ACTION_ABL, BOSSROOM_SUCCUBUS:COUNT1
+                BOSS_ROOM_SUCCUBUS_ACTION:COUNT1 = RESULT
+                BOSSROOM_SUCCUBUS_TIME_COUNTER:COUNT1 = 0
+                ;回合开始时检查状态并结算是否眩暈
+                CALL CHECK_SUCCUBUS_STATE,(BOSSROOM_SUCCUBUS:COUNT1),4
+                ;若眩暈则跳过一个回合
+                IF RESULT == 1
+                    BOSS_ROOM_SUCCUBUS_ACTION:COUNT1 = 0
+                ENDIF
+            ENDIF
+        ENDIF
+        BOSSROOM_SUCCUBUS_TIME_COUNTER:COUNT1 += 1
+    NEXT
+
+    ;移动阶段
+    VARSET ENEMY_ENTER_X
+    VARSET ENEMY_ENTER_Y
+    FOR COUNT1,1,AVILIBILE_ENEMY+1
+        SIF ENEMY:COUNT1 <= 0
+            CONTINUE
+        IF ENEMY_ACTION:COUNT1 <= 0
+            CONTINUE
+        ENDIF
+        IF ENEMY_FIGHTING:COUNT1 != -1
+            CONTINUE
+        ENDIF
+        ;已经在魔王宫殿中
+        IF (ENEMY_LOCATION_X:COUNT1 == BOSS_LOCATION_X) && (ENEMY_LOCATION_Y:COUNT1 == BOSS_LOCATION_Y)
+            CONTINUE
+        ENDIF
+        ;勇者执行移动 返回进入的房间坐标
+        CALL ENEMY_MOVE, COUNT1
+
+        ENEMY_ENTER_X:COUNT1 = RESULT:0
+        ENEMY_ENTER_Y:COUNT1 = RESULT:1
+        ENEMY_LOCATION_X:COUNT1 = ENEMY_ENTER_X:COUNT1
+        ENEMY_LOCATION_Y:COUNT1 = ENEMY_ENTER_Y:COUNT1
+        ENEMY_ACTION = 0
+    NEXT
+    ;重新统计地宫中敌人的位置
+    CALL CAL_ENEMY_IN_ROOM
+    ;统一计算进入房间时触发的效果
+    ;会对目前已经计算的ENEMY_DUNGEON_LOCATION发动AOE效果
+    FOR COUNT1,1,AVILIBILE_ENEMY + 1
+        IF ENEMY_ENTER_X:COUNT1 != 0 
+            IF ENEMY_ENTER_Y:COUNT1 != 0 
+                CALL CHECK_TRAP, ENEMY_ENTER_X:COUNT1, ENEMY_ENTER_Y:COUNT1
+                IF RESULT == 1
+                    ;检查是否有隠れ罠 隠れ罠不可避免触发榨精房间效果
+                    CALL CHECK_ENEMY_STATE, COUNT1, 2
+                    IF RESULT == 0
+                        CALL ENTER_ROOM, COUNT1, ENEMY_ENTER_X:COUNT1, ENEMY_ENTER_Y:COUNT1
+                    ENDIF
+                ELSE
+                    ;非罠，必定会触发
+                    CALL ENTER_ROOM, COUNT1, ENEMY_ENTER_X:COUNT1, ENEMY_ENTER_Y:COUNT1
+                ENDIF
+            ENDIF
+        ENDIF
+    NEXT
+    ;移动阶段结束
+
+    ;检查所有生物的HP
+    CALL CHECK_HP
+    CALL ROOM_CONTAIN_OR_CATCH
+
+    CALL PRINT_DUNGEON, 2
+
+    ;战斗阶段
+    ;重新统计地宫中敌人的位置
+    CALL CAL_ENEMY_IN_ROOM
+    ;勇者先手发动攻击
+    FOR COUNT1,1,AVILIBILE_ENEMY+1
+        SIF ENEMY:COUNT1 <= 0
+            CONTINUE
+        IF ENEMY_ACTION:COUNT1 == 0
+            CONTINUE
+        ENDIF
+        IF ENEMY_FIGHTING:COUNT1 == -1
+            CONTINUE
+        ENDIF
+        ENEMY_SKILL_COUNTER:COUNT1 += 1
+        SKILL_TIME = 4
+        TRYCALLFORM ENEMY_SKILL_NUM_{ENEMY:COUNT1}
+        IF RESULT> 0 && ((ENEMY_SKILL_COUNTER:COUNT1 % SKILL_TIME == 0) || (ENEMY_CATCH:COUNT1 == 0))
+            CALL ENEMY_ATTACK, COUNT1, ENEMY_FIGHTING:COUNT1, 1
+            ENEMY_SKILL_COUNTER:COUNT1 = 0
+        ELSE
+            CALL ENEMY_ATTACK, COUNT1, ENEMY_FIGHTING:COUNT1
+        ENDIF
+    NEXT
+    ;モンスター发动攻击
+    FOR COUNT1,DUNGEON_START_X,DUNGEON_END_X + 1
+        FOR COUNT2,DUNGEON_START_Y, DUNGEON_END_Y + 1
+            SIF (COUNT1 == BOSS_LOCATION_X) && (COUNT2 == BOSS_LOCATION_Y)
+                CONTINUE
+            IF ((SUCCUBUS_LOCATION:COUNT1:COUNT2) != -1) && (CFLAG:(SUCCUBUS_LOCATION:COUNT1:COUNT2):战斗不能 == 0)
+                IF DUNGEON_CONTAIN:COUNT1:COUNT2:1 > 0
+                    WHILE SUCCUBUS_ACTION:COUNT1:COUNT2 > 0
+                        SUCCUBUS_SKILL_COUNTER:COUNT1:COUNT2 += 1
+                        IF CFLAG:(SUCCUBUS_LOCATION:COUNT1:COUNT2):技能急速 == 1
+                            SKILL_TIME = 3
+                        ELSE
+                            SKILL_TIME = 4
+                        ENDIF
+                        IF (SUCCUBUS_SKILL_COUNTER:COUNT1:COUNT2 % SKILL_TIME == 0)
+                            CALL SUCCUBUS_ATTACK, SUCCUBUS_LOCATION:COUNT1:COUNT2 ,DUNGEON_CONTAIN:COUNT1:COUNT2:1, 1
+                            SUCCUBUS_SKILL_COUNTER:COUNT1:COUNT2 = 0
+                        ELSE
+                            CALL SUCCUBUS_ATTACK, SUCCUBUS_LOCATION:COUNT1:COUNT2 ,DUNGEON_CONTAIN:COUNT1:COUNT2:1, 0
+                        ENDIF
+                        SUCCUBUS_ACTION:COUNT1:COUNT2 -= 1
+                    WEND
+                ENDIF
+            ENDIF
+        NEXT
+    NEXT
+    
+    ;魔王宫殿的モンスター攻击需要进行特殊处理
+    FOR COUNT1,0,3
+        IF BOSSROOM_SUCCUBUS:COUNT1 == -1
+            CONTINUE
+        ENDIF
+        IF ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:0 > 0
+            IF ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:1 >0
+                WHILE BOSS_ROOM_SUCCUBUS_ACTION:COUNT1 >0
+                    BOSSROOM_SUCCUBUS_SKILL_COUNTER += 1
+                    IF CFLAG:(BOSSROOM_SUCCUBUS:COUNT1):战斗不能 == 1
+                        CONTINUE
+                    ENDIF
+                    IF CFLAG:(BOSSROOM_SUCCUBUS:COUNT1):技能急速 == 1
+                        SKILL_TIME = 3
+                    ELSE
+                        SKILL_TIME = 4
+                    ENDIF
+                    IF (BOSSROOM_SUCCUBUS_SKILL_COUNTER % SKILL_TIME == 0)
+                        CALL SUCCUBUS_ATTACK, BOSSROOM_SUCCUBUS:COUNT1 ,ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:1, 1
+                        BOSSROOM_SUCCUBUS_SKILL_COUNTER = 0
+                    ELSE
+                        CALL SUCCUBUS_ATTACK, BOSSROOM_SUCCUBUS:COUNT1 ,ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:1, 0
+                    ENDIF
+                    BOSS_ROOM_SUCCUBUS_ACTION:COUNT1 -= 1
+                WEND
+            ENDIF
+        ENDIF
+    NEXT
+
+    CALL CHECK_HP
+    CALL CAL_ENEMY_IN_ROOM
+    CALL ROOM_CONTAIN_OR_CATCH
+    ;进入下一个回合阶段
+    CALL PRINT_DUNGEON, 2
+
+WEND 
+CALL PRINT_DUNGEON, 2
+
+;进入结算页面
+IF CHECK_MAOU()==1
+    CALL FIGHT_SETTLE,1
+ELSE
+    CALL FIGHT_SETTLE,0
+ENDIF
+
+RETURN
+
+;------------------------------------------------
+;生成勇者 并且决定经验值与金币奖励
+;ARG代表生成模式 0为普通战斗 1为精英战斗
+@GENERATE_ENEMY, ARG
+#DIM COUNT1 
+#DIM COUNT2
+#DIM ENEMY_TYPE_NUM
+#DIM ENEMY_NUM
+#DIM ENEMY_LEVEL
+
+ENEMY_LEVEL = DAY/3 + 1
+
+ENEMY_NUM = 10 + RAND((ENEMY_LEVEL/10 + 1)*10)
+FLAG:勇者数量 = ENEMY_NUM
+
+ENEMY_TYPE_NUM = 0
+CALL DAY_ENEMY_STAR_LIMIT, DAY
+ENEMY_TYPE_NUM = RESULT
+
+;勇者编号从1开始
+SELECTCASE ARG
+    ;普通战斗
+    CASE 0
+        FOR COUNT1,1,ENEMY_NUM + 1
+            ENEMY:COUNT1 = RAND(ENEMY_TYPE_NUM) + 1
+            CALL ENEMY_INIT, COUNT1, ENEMY_LEVEL
+        NEXT
+        LOCAL = RAND(ENEMY_NUM) + 1
+        ENEMY:LOCAL += 100
+        CALL ENEMY_INIT, LOCAL, ENEMY_LEVEL + 5 + DAY/10
+        FLAG:奖励经验值 = ENEMY_LEVEL* ENEMY_NUM * 10
+        FLAG:奖励金币 = ENEMY_NUM + 4*1
+    ;精英战斗
+    CASE 1
+        FOR COUNT1,1,ENEMY_NUM + 1
+            ENEMY:COUNT1 = RAND(ENEMY_TYPE_NUM) + 1
+            CALL ENEMY_INIT, COUNT1, ENEMY_LEVEL + 5 + DAY/100 *5
+        NEXT
+        FOR COUNT1, 0, 3+DAY/100
+            LOCAL = RAND(ENEMY_NUM) + 1
+            IF ENEMY:LOCAL>100 || LOCAL == 0
+                COUNT1 -= 1
+                CONTINUE
+            ENDIF
+            ENEMY:LOCAL += 100
+            CALL ENEMY_INIT, COUNT1, ENEMY_LEVEL + 10 + DAY/10 + DAY/100 *5
+            FLAG:奖励经验值 = ENEMY_LEVEL* ENEMY_NUM * 20
+            FLAG:奖励金币 = ENEMY_NUM*2 + 8*3
+        NEXT
+
+ENDSELECT
+
+;-------------------------
+;重置魔王城
+@DUNGEON_INIT
+#DIM COUNT1
+#DIM COUNT2
+
+VARSET ENEMY,0
+VARSET ENEMY_LOCATION_X,0
+VARSET ENEMY_LOCATION_Y,0
+VARSET ENEMY_FIGHTING,-1
+VARSET ENEMY_CATCH,-1
+VARSET ENEMY_HP,0
+VARSET ENEMY_NOW_HP,0
+VARSET ENEMY_ATT,0
+VARSET ENEMY_DEF,0
+VARSET ENEMY_SPEED,0
+VARSET ENEMY_RESISTANT,0
+VARSET ENEMY_DUNGEON_LOCATION,0
+VARSET ENEMY_STATE,0
+;抗性与碎片初始值为1
+FOR LOCAL,0,300
+    FOR LOCAL:1,200,300
+        ENEMY_STATE:LOCAL:(LOCAL:1) = 1
+    NEXT
+NEXT
+VARSET DUNGEON_CONTAIN,-1
+
+;重置モンスター状态
+FOR LOCAL,50,250
+    CVARSET CFLAG,LOCAL,0
+NEXT
+
+;重置モンスター血量
+FOR LOCAL, 0, 300
+    IF SUCCUBUS:LOCAL != -1
+        IF FLAG:水晶不足 == 1
+            BASE:(SUCCUBUS:LOCAL):NOW_HP = BASE:(SUCCUBUS:LOCAL):HP / 2
+        ELSE
+            BASE:(SUCCUBUS:LOCAL):NOW_HP = BASE:(SUCCUBUS:LOCAL):HP
+        ENDIF
+        CFLAG:(SUCCUBUS:LOCAL):战斗不能 = 0
+    ENDIF
+NEXT
+
+;重置房间容纳状态
+FOR COUNT1,DUNGEON_START_X,DUNGEON_END_X + 1
+    FOR COUNT2,DUNGEON_START_Y,DUNGEON_END_Y + 1
+        SIF (COUNT1 == BOSS_LOCATION_X) && (COUNT2 == BOSS_LOCATION_Y)
+            CONTINUE
+        IF SUCCUBUS_LOCATION:COUNT1:COUNT2 == -1
+            CONTINUE
+        ENDIF
+        TRYCALLFORM ROOM_CATCH_NUM_{DUNGEON:COUNT1:COUNT2}
+        DUNGEON_CONTAIN:COUNT1:COUNT2:0 = RESULT
+    NEXT
+NEXT
+
+FLAG:聚焦对象 = MASTER
+;重置魔王相关的战斗FLAG
+CFLAG:MASTER:欢喜香水 = 0
+
+;-------------------------
+;勇者进行移动操作
+;ARG为勇者的编号
+;勇者有更高的概率往魔王的房间移动
+@ENEMY_MOVE, ARG
+#DIM COUNT1
+#DIM CHANCE,5
+#DIM CHANCE_TO_THERE
+#DIM NOW_X
+#DIM NOW_Y
+VARSET CHANCE, 0
+
+NOW_X = ENEMY_LOCATION_X:ARG
+NOW_Y = ENEMY_LOCATION_Y:ARG
+
+IF NOW_X == BOSS_LOCATION_X && NOW_Y == BOSS_LOCATION_Y
+    RETURN NOW_X, NOW_Y
+ENDIF
+VARSET CHANCE, 0
+FOR COUNT1,0,4
+    CHANCE_TO_THERE = 0
+    IF DUNGEON_CONNECT:NOW_X:NOW_Y:COUNT1 == 0
+        CHANCE_TO_THERE = 0
+    ELSEIF (COUNT1 == 0) 
+        IF BOSS_LOCATION_Y < NOW_Y
+            CHANCE_TO_THERE = 3
+        ELSE
+            CHANCE_TO_THERE = 1
+        ENDIF
+    ELSEIF (COUNT1 == 1)
+        IF BOSS_LOCATION_Y > NOW_Y
+            CHANCE_TO_THERE = 3
+        ELSE
+            CHANCE_TO_THERE = 1
+        ENDIF
+    ELSEIF (COUNT1 == 2) 
+        IF BOSS_LOCATION_X < NOW_X
+            CHANCE_TO_THERE = 3
+        ELSE
+            CHANCE_TO_THERE = 1
+        ENDIF
+    ELSEIF (COUNT1 == 3) 
+        IF BOSS_LOCATION_X > NOW_X
+            CHANCE_TO_THERE = 3
+        ELSE
+            CHANCE_TO_THERE = 1
+        ENDIF
+    ENDIF
+
+    CHANCE:(COUNT1 + 1) = CHANCE:COUNT1 + CHANCE_TO_THERE
+NEXT
+LOCAL = RAND(CHANCE:4)
+IF LOCAL < CHANCE:1
+    RETURN NOW_X,NOW_Y - 1
+ELSEIF LOCAL < CHANCE:2
+    RETURN NOW_X, NOW_Y + 1
+ELSEIF LOCAL < CHANCE:3
+    RETURN NOW_X - 1, NOW_Y
+ELSEIF LOCAL < CHANCE:4
+    RETURN NOW_X + 1 ,NOW_Y
+ENDIF
+
+;-------------------------
+;触发进入房间时触发的效果
+;ARG为角色编号，ARG:1与ARG:2为房间的坐标x y
+@ENTER_ROOM, ARG, ARG:1, ARG:2
+#DIM ROOM_TYPE
+#DIM SUCCUBUS_TYPE
+
+ROOM_TYPE = DUNGEON:(ARG:1):(ARG:2)
+IF (SUCCUBUS_LOCATION:(ARG:1):(ARG:2))>0
+    SUCCUBUS_TYPE = BASE:(SUCCUBUS_LOCATION:(ARG:1):(ARG:2)):种族
+ENDIF
+
+TRYCALLFORM ROOM_ACT_{ROOM_TYPE},ARG,1,0,DUNGEON_LEVEL:(ARG:1):(ARG:2), ARG:1, ARG:2
+
+IF ARG:1 == BOSS_LOCATION_X
+    IF ARG:2 == BOSS_LOCATION_Y
+        SUCCUBUS_TYPE = BOSSROOM_SUCCUBUS:1
+        TRYCALLFORM SUCCUBUS_SKILL_{SUCCUBUS_TYPE},ARG,3
+        SUCCUBUS_TYPE = BOSSROOM_SUCCUBUS:2
+        TRYCALLFORM SUCCUBUS_SKILL_{SUCCUBUS_TYPE},ARG,3
+        RETURN
+    ENDIF
+ENDIF
+TRYCALLFORM SUCCUBUS_SKILL_{SUCCUBUS_TYPE},ARG,3
+
+;---------------------
+;检查是否还有勇者存活
+;ARG为勇者的总数量
+@CHECK_ENEMY
+#FUNCTION
+FOR LOCAL,0,600
+    IF ENEMY:LOCAL != 0
+        RETURNF 0
+    ENDIF
+NEXT
+RETURNF 1 
+
+;---------------------
+;检查魔王是否被击败
+@CHECK_MAOU
+#FUNCTION
+IF (BASE:MASTER:NOW_HP <= 0)|| (CFLAG:MASTER:战斗不能 == 1)
+    RETURNF 1
+ELSE
+    RETURNF 0
+ENDIF
+
+;---------------------
+;全房间对某种情况一同发动效果
+;ARG为目标对象，ARG:1为发动的情况，ARG:2触发的特殊状态种类
+;-1为モンスター退出房间时对モンスター产生效果，0为モンスター部署进房间时对房间中的モンスター产生效果
+; 1为当勇者进场或者经过时产生效果 2战斗开始前对全地宫被动效果 3为房间联动 4为赋予特殊状态时发动的全地宫效果 5为目标被消灭时发动的效果 6目标被消灭时对全地宫发动的效果 7结算界面发动的效果
+@ALL_ROOM_ACT, ARG, ARG:1, ARG:2
+#DIM COUNT1
+#DIM COUNT2
+COUNT1 = 0
+COUNT2 = 0
+FOR COUNT1,DUNGEON_START_X,DUNGEON_END_X+ 1
+    FOR COUNT2,DUNGEON_START_Y,DUNGEON_END_Y+ 1
+        TRYCALLFORM ROOM_ACT_{DUNGEON:COUNT1:COUNT2}, ARG, ARG:1,ARG:2,DUNGEON_LEVEL:COUNT1:COUNT2, COUNT1, COUNT2
+    NEXT
+NEXT
+
+;--------------------------
+;检查所有生物的HP
+;如果モンスターHP归0那么解除房间中对勇者的锁定，同时榨精房间不再容纳勇者
+;如果勇者HP归0那么从ENEMY中删除勇者的种类编号变成0,并且从DUNGEON_CONTAIN中移除,并且从后往前补员
+;同时触发モンスター和房间以及勇者自身被消灭的效果
+;若勇者是被捕获状态，那么还需要触发捕获消灭效果
+@CHECK_HP
+#DIM COUNT1
+#DIM COUNT2
+#DIM COUNT3
+;前移DUNGEON_CONTAIN
+#DIM FLAG1
+#DIM SUCCUBUS_CHARA_NO
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", MAOU_RACE)
+
+FOR COUNT1,1,600
+    IF ENEMY:COUNT1 <= 0
+        CONTINUE
+    ENDIF
+    FLAG1 = 0
+    IF ENEMY_NOW_HP:COUNT1 <= 0
+        ;发动房间效果
+        TRYCALLFORM ROOM_ACT_{DUNGEON:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1)}, COUNT1, 5,0,DUNGEON_LEVEL:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1), (ENEMY_LOCATION_X:COUNT1), (ENEMY_LOCATION_Y:COUNT1)
+        ;发动モンスター效果
+        TRYCALLFORM SUCCUBUS_SKILL_{BASE:(SUCCUBUS_LOCATION:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1)):种族}, COUNT1, 5
+        ;发动勇者效果
+        TRYCALLFORM ENEMY_SKILL_{ENEMY:COUNT1}, COUNT1, 5
+        ;触发捕获消灭奖励
+        ;如果不是在魔王宫殿中被消灭
+        IF (ENEMY_LOCATION_X:COUNT1 !=BOSS_LOCATION_X) || (ENEMY_LOCATION_Y:COUNT1 !=BOSS_LOCATION_Y)
+            FOR COUNT2, 1, DUNGEON_CONTAIN:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1):0 + 1 
+                SIF DUNGEON_CONTAIN:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1):COUNT2 == -1
+                    FLAG1 = 1
+                IF DUNGEON_CONTAIN:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1):COUNT2 == COUNT1
+                    IF ENEMY_CATCH:COUNT1 == 1
+                        CALL DESTORY_CATCH_ENEMY, COUNT1, ENEMY_FIGHTING:COUNT1
+                    ENDIF
+                    DUNGEON_CONTAIN:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1):COUNT2 = -1
+                    FLAG1 = 1
+                ENDIF
+                IF FLAG1 == 1
+                    DUNGEON_CONTAIN:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1):COUNT2 = DUNGEON_CONTAIN:(ENEMY_LOCATION_X:COUNT1):(ENEMY_LOCATION_Y:COUNT1):(COUNT2+1)
+                ENDIF
+            NEXT
+        ELSE
+            IF ENEMY_CATCH:COUNT1 == 1
+                CALL DESTORY_CATCH_ENEMY, COUNT1, ENEMY_FIGHTING:COUNT1
+            ENDIF
+        ENDIF
+        ;移除勇者
+        ENEMY:COUNT1 = 0
+        ENEMY_LOCATION_X:COUNT1 = -1
+        ENEMY_LOCATION_Y:COUNT1 = -1
+        ;角色死亡时检查角色的状态
+        CALL CHECK_ENEMY_STATE, COUNT1,0, 5
+    ENDIF
+NEXT
+
+
+FOR COUNT1,DUNGEON_START_X,DUNGEON_END_X + 1
+    FOR COUNT2,DUNGEON_START_Y, DUNGEON_END_Y + 1
+        IF SUCCUBUS_LOCATION:COUNT1:COUNT2 == -1
+            CONTINUE
+        ENDIF
+        IF CFLAG:(SUCCUBUS_LOCATION:COUNT1:COUNT2):战斗不能 == 1
+            CONTINUE
+        ENDIF
+        IF COUNT1 == BOSS_LOCATION_X
+            IF COUNT2 == BOSS_LOCATION_Y
+                CONTINUE
+            ENDIF
+        ENDIF
+        SUCCUBUS_CHARA_NO = SUCCUBUS_LOCATION:COUNT1:COUNT2
+        IF BASE:SUCCUBUS_CHARA_NO:NOW_HP <= 0
+            DUNGEON_CONTAIN:COUNT1:COUNT2:0 = 0
+            FOR COUNT3,1,10
+                IF DUNGEON_CONTAIN:COUNT1:COUNT2:COUNT3 != -1
+                    IF ENEMY_FIGHTING:(DUNGEON_CONTAIN:COUNT1:COUNT2:COUNT3) == SUCCUBUS_CHARA_NO
+                        ENEMY_FIGHTING:(DUNGEON_CONTAIN:COUNT1:COUNT2:COUNT3) = -1
+                    ENDIF
+                    DUNGEON_CONTAIN:COUNT1:COUNT2:COUNT3 = -1
+                ENDIF
+            NEXT
+            CFLAG:(SUCCUBUS_LOCATION:COUNT1:COUNT2):战斗不能 = 1
+        ENDIF
+    NEXT
+NEXT
+
+;随行モンスター特殊处理
+FOR COUNT1,1,3
+    IF BOSSROOM_SUCCUBUS:COUNT1 == -1
+        CONTINUE
+    ENDIF
+    IF CFLAG:(BOSSROOM_SUCCUBUS:COUNT1):战斗不能 == 1
+        CONTINUE
+    ENDIF
+    IF BASE:(BOSSROOM_SUCCUBUS:COUNT1):NOW_HP <= 0
+        CFLAG:(BOSSROOM_SUCCUBUS:COUNT1):战斗不能 = 1
+        FOR LOCAL,1,600
+            IF ENEMY_FIGHTING:LOCAL == BOSSROOM_SUCCUBUS:COUNT1
+                ENEMY_FIGHTING:LOCAL = -1
+            ENDIF
+        NEXT
+    ENDIF
+NEXT
+
+;检查魔王的血量并且发动效果
+;リリス
+IF MAOU_RACE == 301 
+    IF MAOU_RANK > 7
+        IF BASE:MASTER:NOW_HP <= BASE:MASTER:HP/2 && CFLAG:欢喜香水 == 0
+            FOR COUNT1,1,600
+                IF ENEMY:COUNT1 <= 0
+                    CONTINUE
+                ENDIF
+                CALL ADD_ENEMY_STATE_51,COUNT1, 10
+            NEXT
+            CALL ADD_SUCCUBUS_STATE_100, MASTER, BASE:MASTER:HP
+            CFLAG:欢喜香水 = 1
+        ENDIF
+    ENDIF
+ENDIF
+
+;-------------------------------
+;补充房间内的容量并判断是否被捕获
+@ROOM_CONTAIN_OR_CATCH
+#DIM COUNT1
+#DIM COUNT2
+#DIM COUNT3
+#DIM COUNT4
+#DIM ROOM_ENEMY_NUM
+
+;魔王宫殿需要进行特殊处理
+;魔王宫殿直接使用ENEMY_DUNGEON_LOCATION进行容纳
+;攻击的对象从魔王和随行モンスター中随机挑选
+;是否会被捕获只会在刚刚进入房间的时候进行判定
+FOR COUNT1, 1,ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:0 + 1
+    IF ENEMY:(ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1) <= 0
+        CONTINUE
+    ENDIF
+    IF ENEMY_FIGHTING:(ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1) == -1
+        $RAND_LOOP
+        LOCAL = RAND(3)
+        SELECTCASE LOCAL
+            CASE 0
+                ENEMY_FIGHTING:(ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1) = BOSSROOM_SUCCUBUS:0
+            CASE 1
+                IF BOSSROOM_SUCCUBUS:1 == -1 || CFLAG:(BOSSROOM_SUCCUBUS:1):战斗不能 == 1
+                    GOTO RAND_LOOP
+                ENDIF
+                ENEMY_FIGHTING:(ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1) = BOSSROOM_SUCCUBUS:1
+            CASE 2 
+                IF BOSSROOM_SUCCUBUS:2 == -1 || CFLAG:(BOSSROOM_SUCCUBUS:2):战斗不能 == 1
+                    GOTO RAND_LOOP
+                ENDIF
+                ENEMY_FIGHTING:(ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1) = BOSSROOM_SUCCUBUS:2
+        ENDSELECT
+        CALL CHECK_CATCH, BOSS_LOCATION_X, BOSS_LOCATION_Y, ENEMY_DUNGEON_LOCATION:BOSS_LOCATION_X:BOSS_LOCATION_Y:COUNT1
+    ENDIF
+NEXT
+
+FOR COUNT1,DUNGEON_START_X,DUNGEON_END_X+ 1
+    FOR COUNT2,DUNGEON_START_Y, DUNGEON_END_Y+ 1
+        SIF (COUNT1 == BOSS_LOCATION_X) && (COUNT2 == BOSS_LOCATION_Y)
+            CONTINUE
+        IF SUCCUBUS_LOCATION:COUNT1:COUNT2 == -1
+            CONTINUE
+        ENDIF
+
+        IF CFLAG:(SUCCUBUS_LOCATION:COUNT1:COUNT2):战斗不能 == 1
+            CONTINUE
+        ENDIF
+
+        IF DUNGEON_CONTAIN:COUNT1:COUNT2:0 > 0
+            FOR COUNT3,1,DUNGEON_CONTAIN:COUNT1:COUNT2:0 + 1
+                IF DUNGEON_CONTAIN:COUNT1:COUNT2:COUNT3 == -1
+                    ;房间中的敌人数量
+                    ROOM_ENEMY_NUM = ENEMY_DUNGEON_LOCATION:COUNT1:COUNT2:0 + 1
+                    FOR COUNT4,1,ROOM_ENEMY_NUM
+                        IF ENEMY:(ENEMY_DUNGEON_LOCATION:COUNT1:COUNT2:COUNT4) <= 0
+                            CONTINUE
+                        ENDIF
+                        IF ENEMY_FIGHTING:(ENEMY_DUNGEON_LOCATION:COUNT1:COUNT2:COUNT4) == -1
+                            DUNGEON_CONTAIN:COUNT1:COUNT2:COUNT3 = ENEMY_DUNGEON_LOCATION:COUNT1:COUNT2:COUNT4
+                            ENEMY_FIGHTING:(ENEMY_DUNGEON_LOCATION:COUNT1:COUNT2:COUNT4) = SUCCUBUS_LOCATION:COUNT1:COUNT2
+                            CALL CHECK_CATCH, COUNT1, COUNT2, ENEMY_DUNGEON_LOCATION:COUNT1:COUNT2:COUNT4
+                            BREAK
+                        ENDIF
+                    
+                    NEXT
+                ENDIF
+            NEXT
+        ENDIF
+    NEXT
+NEXT
+
+;----------------------------
+;检查是否被捕获
+;ARG, ARG:1为房间坐标 ARG:2为勇者的编号
+@CHECK_CATCH, ARG, ARG:1, ARG:2
+#DIM COUNT1
+#DIM COUNT2
+#DIM CATCH_POWER
+
+IF SUCCUBUS_LOCATION:ARG:(ARG:1) == -1
+    RETURN
+ENDIF
+
+IF CFLAG:(SUCCUBUS_LOCATION:ARG:(ARG:1)):战斗不能 == 1
+    RETURN
+ENDIF
+
+RESULT = 0
+TRYCALLFORM ROOM_CATCH_POWER_{DUNGEON:ARG:(ARG:1)}, ARG, ARG:1
+CATCH_POWER = RESULT
+
+IF CATCH_POWER >= ENEMY_RESISTANT:(ARG:2)
+    ;判定是否能够逃げ
+    CALL CHECK_ENEMY_STATE, ARG:2 ,0, 7
+    IF RESULT > 0
+        RETURN
+    ENDIF
+    ENEMY_ATT:(ARG:2) = ENEMY_ATT:(ARG:2) / 2
+    ENEMY_DEF:(ARG:2) = ENEMY_DEF:(ARG:2) / 2
+    ENEMY_CATCH:(ARG:2) = 1
+ENDIF
+
+;-------------------------------------
+;当一方倒下时候删除捕获状态,并且回复榨取的モンスター的
+;ARG为勇者的编号 ARG:1为モンスター的编号
+@DESTORY_CATCH_ENEMY, ARG, ARG:1
+ENEMY_ATT:ARG = ENEMY_ATT:ARG * 2
+ENEMY_DEF:ARG = ENEMY_DEF:ARG * 2
+ENEMY_CATCH:ARG = 0
+
+
+;-------------------------------------
+;检查モンスター是否可以行动多次
+@SUCCUBUS_ACTION_ABL, ARG
+#DIM RACE
+IF ARG < 0
+    PRINT 编号错误，SUCCUBUS_ACTION_ABL
+    RETURN
+ENDIF
+
+RACE = BASE:ARG:种族
+TRYCALLFORM SUCCUBUS_ACTION_TURN_{RACE}
+LOCAL = RESULT
+RETURN LOCAL
+
+;------------------------------------
+;检查每个勇者在回合开始时受到的魔王技能的效果
+;ARG为勇者的编号
+@MAOU_ACT_PER_ENEMY_ROUND,ARG
+#DIM MAOU_RANK
+MAOU_RANK = NUM("魔王星级", MAOU_RACE)
+;リリス
+IF MAOU_RACE == 301 
+    IF MAOU_RANK > 4
+        CALL CHECK_ENEMY_STATE_51, ARG
+        IF RESULT > 0
+            ENEMY_NOW_HP:ARG = ENEMY_NOW_HP:ARG - ENEMY_HP:ARG/100
+        ENDIF
+    ENDIF
+ENDIF

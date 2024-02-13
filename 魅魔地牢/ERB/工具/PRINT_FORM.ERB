@@ -1,0 +1,511 @@
+﻿;-------------------------------------------------
+;输出相关的函数
+;-------------------------------------------------
+@PRINTQUOTE(ARGS,ARGS:1)
+ALIGNMENT CENTER
+FONTITALIC
+
+PRINTFORML %ARGS%
+
+ALIGNMENT RIGHT
+PRINTFORML ——%ARGS:1%%BL(2)%
+FONTREGULAR
+ALIGNMENT LEFT
+
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+;颜色相关的函数
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+;-------------------------------------------------
+;特殊な書式の文字列ARGSを読める文章に直す（特殊书写）
+;行や命令は_で区切る事。そしてLOCALSは99までなので手加減してくれ
+;CASEを増やして、そのうち文字列を別作成しないで済むようにしたい
+;改行する時とWAITを付けて改行する時は、それぞれ以下のPRINT_STRL, PRINT_STRWを用いると間違いが少なくなるのでおすすめです
+;-------------------------------------------------
+@PRINT_STR, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+#DIM LCOUNT
+FOR LCOUNT, 1, 10
+	SIF ARGS:LCOUNT != ""
+		ARGS = %ARGS%_%ARGS:LCOUNT%
+NEXT
+
+VARSET LOCALS
+
+;文字列を分解する
+SPLIT ARGS, "_", LOCALS
+
+FOR LCOUNT, 0, 100
+	;特殊な操作
+	SELECTCASE LOCALS:LCOUNT
+	;CASE ""
+	;	BREAK
+	CASE "CALLNAME:TARGET"
+		PRINTFORM %CALLNAME:TARGET%
+		CONTINUE
+	CASE "CALLNAME:PLAYER"
+		PRINTFORM 將%CALLNAME:PLAYER%
+		CONTINUE
+	CASE "CALLNAME:ASSI"
+		PRINTFORM %CALLNAME:ASSI%
+		CONTINUE
+	CASE "CALLNAME:MASTER"
+		PRINTFORM %CALLNAME:MASTER%
+		CONTINUE
+	CASE "BUTTON"
+		;次の文字をボタンにする
+		LCOUNT += 1
+		PRINTBUTTON LOCALS:LCOUNT, LOCALS:LCOUNT
+		RESETCOLOR
+		CONTINUE
+	CASE "NOBUTTON"
+		;次の文字をボタンにしない
+		LCOUNT += 1
+		PRINTPLAINFORM %LOCALS:LCOUNT%
+		RESETCOLOR
+		CONTINUE
+	CASE "-"
+		;次の文字に打消し線を引く
+		FONTSTYLE 4
+		CONTINUE
+	CASE "L"
+		PRINTL 
+		CONTINUE
+	CASE "W"
+		PRINTW 
+		CONTINUE
+	CASE "WAIT"
+		WAIT
+		CONTINUE
+	CASE "FORCEWAIT"
+		FORCEWAIT
+		CONTINUE
+	CASE "H"
+		CALL HEARTMARK
+		CONTINUE
+	CASE "WH"
+		CALL WHITE_HEARTMARK
+		CONTINUE
+	CASE "BH"
+		CALL BIG_HEARTMARK
+		CONTINUE
+	CASE "HH"
+		SETCOLOR DEF_COLOR("ハート粉紅")
+		CALL HEARTMARK
+		RESETCOLOR
+		CONTINUE
+	CASE "BHH"
+		SETCOLOR DEF_COLOR("ハート粉紅")
+		CALL BIG_HEARTMARK
+		RESETCOLOR
+		CONTINUE
+	CASE "／／／"
+		SETCOLOR DEF_COLOR("粉紅")
+		PRINT ///
+		RESETCOLOR
+		CONTINUE
+	CASE "茶色", "紫色", "粉红", "爱心粉红", "赤", "红", "黄色", "暗黄色", "金黄", "绿", "青", "水蓝", "蓝色", "暗灰色", "灰色", "明灰色", "白","红色"
+		SETCOLOR DEF_COLOR(LOCALS:LCOUNT)
+		CONTINUE
+	ENDSELECT
+
+	PRINTFORM %LOCALS:LCOUNT%
+	RESETCOLOR
+	FONTSTYLE 0
+NEXT
+RESETCOLOR
+FONTSTYLE 0
+
+;-------------------------------------------------
+;PRINT_STRの最後の_Lと_Wを関数に織り込んだver（PRINT_STR的L类型衍生）
+;-------------------------------------------------
+@PRINT_STRL, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+CALL PRINT_STR, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+PRINTL
+
+@PRINT_STRW, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+CALL PRINT_STR, ARGS, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9
+WAIT
+
+;-------------------------------------------------
+;色の設定
+;-------------------------------------------------
+@DEF_COLOR(ARGS)
+#FUNCTION
+SELECTCASE ARGS
+CASE "茶色"
+	RETURNF 0x90623C
+CASE "紫色"
+	RETURNF 0xEF0EEF
+CASE "粉红"
+	RETURNF 0xEF857C
+CASE "爱心粉红"
+	RETURNF 0xFFC0CB
+CASE "赤"
+	RETURNF 0xEF5445
+CASE "红色"
+	RETURNF 0xEF5445
+CASE "红"
+	RETURNF 0xB815B8
+CASE "黄色"
+	RETURNF 0xEFD540
+CASE "暗黄色"
+	RETURNF 0xC4C400
+CASE "金黄"
+	RETURNF 0xFFFF00
+CASE "绿"
+	RETURNF 0x70E02C
+CASE "绿色"
+	RETURNF 0x70E02C
+CASE "青"
+	RETURNF 0x4470EF
+CASE "蓝色"
+	RETURNF 0x165E83
+CASE "水蓝"
+	RETURNF 0xB0CCEF
+CASE "暗灰色"
+	RETURNF 0x404040
+CASE "灰色"
+	RETURNF 0x707070
+CASE "明灰色"
+	RETURNF 0x909090
+CASE "白"
+	RETURNF 0xE3E3E3
+CASEELSE
+	RETURNF 0xE3E3E3
+ENDSELECT
+
+;-------------------------------------------------
+;ARGに数値、ARG:1に最大値(これ以上だとS)を入れる。ABLの表記に適している。
+;-------------------------------------------------
+@PRINT_RANK, ARG, ARG:1
+SIF ARG < 0
+	ARG = 0
+SIF ARG:1 < 0
+	ARG:1 = 10
+
+RESETCOLOR
+
+PRINTPLAINFORM [
+
+GETFONT
+CHKFONT "ＭＳ 哥特"
+SIF RESULT
+	SETFONT "ＭＳ 哥特"
+
+IF ARG == 0
+	CALL PRINT_COLORTEXT, "-", DEF_COLOR("灰色")
+ELSE
+	IF ARG:1 < 10
+		ARG = 1 + ARG*2
+		ARG:1 *= 2
+	ENDIF
+
+	SELECTCASE ARG
+	;最大値以上
+	CASE IS >= ARG:1
+		CALL PRINT_STR, "爱心粉红_S"
+	;90%
+	CASE IS >= MAX(ARG:1 * 90 / 100, 5)
+		CALL PRINT_STR, "粉红_A"
+	;70%
+	CASE IS >= MAX(ARG:1 * 70 / 100, 4)
+		CALL PRINT_STR, "蓝色_B"
+	;50%
+	CASE IS >= MAX(ARG:1 * 50 / 100, 3)
+		CALL PRINT_STR, "黄色_C"
+	;30%
+	CASE IS >= MAX(ARG:1 * 30 / 100, 2)
+		CALL PRINT_STR, "水蓝_D"
+	;10%
+	CASE IS >= MAX(ARG:1 * 10 / 100, 1)
+		CALL PRINT_STR, "绿_E"
+	;それ以下
+	CASEELSE
+		CALL PRINT_COLORTEXT, "-", DEF_COLOR("灰色")
+		;CALL PRINT_STR, "灰色_-"
+	ENDSELECT
+ENDIF
+
+SETFONT RESULTS
+
+PRINTPLAINFORM ] 
+
+;-------------------------------------------------
+;ARGSに指定した色ARGをつけて出力する
+;-------------------------------------------------
+@PRINT_COLORTEXT, ARGS, ARG
+SETCOLOR ARG
+PRINTFORM %ARGS%
+RESETCOLOR
+;-------------------------------------------------
+;PRINT_COLORTEXTの改行版
+;-------------------------------------------------
+@PRINTL_COLORTEXT, ARGS, ARG
+SETCOLOR ARG
+PRINTFORML %ARGS%
+RESETCOLOR
+
+
+;-------------------------------------------------
+;簡単な選択肢を１行で記述するための関数。ARGS:1は戻るとかやめるなどの選択肢用で自動的に[99]が割り振られる
+;例えば、CALL PRINT_SELECT, "はい/いいえ", "なんだって？" とすると
+;	PRINTL  [ 0] はい
+;	PRINTL  [ 1] いいえ
+;	PRINTL  [99] なんだって？
+;	CALL INPUT_SELECT, 2, 99
+;と記述した事に等しい。選択肢の番号を飛ばしたりなどは出来ないので、あくまで単純な選択肢を作りたい場合に向く
+;ARG为每一个选项的长度
+;-------------------------------------------------
+@PRINT_SELECT, ARGS, ARGS:1, ARG
+#DIM LCOUNT
+#DIM NUM_SELECT
+#DIMS MEMOS, 10
+
+VARSET LOCALS
+SPLIT ARGS, "/", LOCALS
+
+NUM_SELECT = 0
+FOR LCOUNT, 0, 99
+	SIF LOCALS:LCOUNT == ""
+		BREAK
+
+	VARSET MEMOS
+	SPLIT LOCALS:LCOUNT, "_", MEMOS
+
+	SELECTCASE MEMOS:1
+	CASE "NOBUTTON"
+		PRINTFORML %MEMOS%
+	CASEELSE
+		LOCALS = [{LCOUNT, 2}] %MEMOS%
+		PRINTFORM %TEXT_LJ(LOCALS, 17)%
+	ENDSELECT
+	;選択肢の数
+	NUM_SELECT += 1
+NEXT
+
+SELECTCASE ARGS:1
+CASE ""
+	CALL INPUT_SELECT, NUM_SELECT
+CASEELSE
+	PRINTFORML  [99] %ARGS:1%
+	CALL INPUT_SELECT, NUM_SELECT, 99
+ENDSELECT
+
+RETURN RESULT
+
+;-------------------------------------------------
+;限制输入项的函数
+;-------------------------------------------------
+@INPUT_SELECT, ARG, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8, ARG:9, ARG:10
+INPUT
+
+SELECTCASE RESULT
+CASE IS < 0
+	RESTART
+CASE 0 TO ARG - 1, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8, ARG:9, ARG:10
+	RETURN RESULT
+ENDSELECT
+RESTART
+;-------------------------------------------------
+;半角でARG:1文字以上ARG文字以下の文字列入力をさせて、RESULTSでかえす
+;-------------------------------------------------
+@INPUTS_SELECT, ARG, ARG:1
+INPUTS
+SELECTCASE STRLENS(RESULTS)
+CASE IS < ARG:1
+	IF STRLENS(RESULTS) == 0
+		PRINTL 文字を入力してください
+	ELSE
+		PRINTFORML %RESULTS%は短すぎます。半角で{ARG:1}～{ARG}文字に収めてください。
+	ENDIF
+	RESTART
+CASE IS > ARG
+	PRINTFORML %RESULTS%は長すぎます。半角で{ARG}文字までに収めてください。
+	RESTART
+CASEELSE
+
+ENDSELECT
+
+;-------------------------------------------------
+;文字列の桁数を合わせる
+;RJは右詰、LJは左詰め
+;-------------------------------------------------
+@TEXT_RJ(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE STRLENS(ARGS)
+CASE IS >= ARG
+	RETURNF ARGS
+CASEELSE
+	LOCALS = %BL(ARG-STRLENS(ARGS) )%%ARGS%
+ENDSELECT
+RETURNF LOCALS
+
+@TEXT_LJ(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE STRLENS(ARGS)
+CASE IS >= ARG
+	RETURNF ARGS
+CASEELSE
+	LOCALS = %BL(1 )%%ARGS%%BL(ARG-STRLENS(ARGS)-1 )%
+ENDSELECT
+RETURNF LOCALS
+
+@TEXT_CJ(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE STRLENS(ARGS)
+CASE IS >= ARG
+	RETURNF ARGS
+CASEELSE
+	LOCALS = %BL((ARG-STRLENS(ARGS))/2 )%%ARGS%%BL((ARG-STRLENS(ARGS)) - (ARG-STRLENS(ARGS))/2 )%
+ENDSELECT
+RETURNF LOCALS
+
+;专门为日程表符号设计的CJ 相对不严谨，输出的格子数不是严格的的ARG
+@TEXT_CJ_DATE(ARGS, ARG)
+#FUNCTIONS
+SELECTCASE STRLENS(ARGS)
+CASE IS >= ARG
+	RETURNF ARGS
+CASEELSE
+	LOCALS = %BL((ARG-STRLENS(ARGS))/2 )%%ARGS%%BL((ARG-STRLENS(ARGS))/2 )%
+ENDSELECT
+RETURNF LOCALS
+
+
+;-------------------------------------------------
+;半角スペースの出力
+;-------------------------------------------------
+@BL(ARG)
+#FUNCTIONS
+LOCALS = 
+SIF ARG <= 0
+	RETURNF LOCALS
+FOR LOCAL, 0, ARG
+	LOCALS += " "
+NEXT
+RETURNF LOCALS
+
+;-------------------------------------------------
+;左端にARGSを出力させるDRAWLINE
+;ARGS:1に文字列を入れると、ARGS部分をARGS:1を返すスイッチにします
+;-------------------------------------------------
+@DRAWLINES, ARGS, ARGS:1
+LOCALS = %ARGS%
+IF ARGS:1 != ""
+	PRINTBUTTON LOCALS, ARGS:1
+ELSE
+	PRINTFORM %LOCALS%
+ENDIF
+FOR LOCAL, 0, NUM("折り返し文字数") - STRLENS(ARGS)
+	PRINTFORM -
+NEXT
+;自動改行
+PRINTL 
+
+@DRAWLINES_CENTER, ARGS
+#DIM LCOUNT
+FOR LCOUNT, 0, (NUM("折り返し文字数") - STRLENS(ARGS) )/2
+	PRINTFORM -
+NEXT
+PRINTFORM %ARGS%
+FOR LCOUNT, 0, (NUM("折り返し文字数") - STRLENS(ARGS) )/2
+	PRINTFORM -
+NEXT
+;自動改行
+PRINTL 
+
+;自定义输出 ARG--------------
+;ARG:1 为0时表示不是按钮
+;ARGS:2为填充字符
+@DRAWLINES_DIY, ARGS, ARG:1, ARGS:2
+LOCALS = %ARGS%
+
+FOR LOCAL, 0, (NUM("折り返し文字数") - STRLENS(ARGS))/ STRLENS(ARGS:2)
+	LOCALS = %LOCALS%%ARGS:2%
+NEXT
+
+IF ARG:1 != 0
+	PRINTBUTTON LOCALS, ARG:1
+ELSE
+	PRINTFORM %LOCALS%
+ENDIF
+;自動改行
+PRINTL 
+
+;自定义输出 --------ARG------
+@DRAWLINES_CENTER_DIY, ARGS, ARGS:1
+#DIM LCOUNT
+FOR LCOUNT, 0, (NUM("折り返し文字数") - STRLENS(ARGS) )/2
+	PRINTFORM %ARGS:1%
+NEXT
+CALL PRINT_STR, @"%ARGS%"
+FOR LCOUNT, 0, (NUM("折り返し文字数") - STRLENS(ARGS) )/2
+	PRINTFORM %ARGS:1%
+NEXT
+;自動改行
+PRINTL 
+
+;输出[ARG]ARGS类型的占17格子的按钮
+;ARG:1为0时输出不能按下的灰色按钮
+@PRINT_BUTTON_17, ARGS, ARG , ARG:1
+IF ARG:1 == 1
+	LOCALS = [{ARG}]%ARGS%
+	PRINTFORM %TEXT_LJ(LOCALS,17)%
+ELSEIF ARG:1 == 0
+	SETCOLOR 0x707070
+	LOCALS = [{ARG}]%ARGS%
+	PRINTPLAINFORM %TEXT_LJ(LOCALS,17)%
+	RESETCOLOR
+ENDIF 
+
+;------------------------------------
+;打印卡片 用于奖励卡片和物品卡片
+;第一参数为卡片的宽度 最小为4
+;打印卡片顶部
+@PRINT_CARD_TOP, ARG
+PRINT ┏
+FOR LOCAL, 0 , ARG-4
+	PRINT -
+NEXT
+PRINT ┓
+
+;打印卡片的空白行
+@PRINT_CARD_BLANK, ARG
+PRINT ┃
+FOR LOCAL, 0 , ARG-4
+	PRINT  
+NEXT
+PRINT ┃
+
+;打印卡片的显示行，ARG为卡片的宽度，ARGS为要显示的字符
+@PRINT_CARD_TEXT,ARG, ARGS
+PRINT ┃
+CALL PRINT_STR,@"%TEXT_CJ(ARGS,ARG - 4)%"
+PRINT ┃
+
+;打印卡片的按钮两行，ARG为卡片的宽度 最小为10，ARG:1为返还的按钮值，ARGS为要显示的字符
+;ARG:1 为三位数 当ARG:1 <=0时输出不可用按钮
+@PRINT_CARD_BUTTON,ARG, ARGS, ARG:1
+LOCALS = %TEXT_CJ(ARGS,ARG - 4)%
+PRINT ┃
+IF ARG:1 > 99
+	PRINTBUTTON LOCALS, ARG:1
+ELSE
+	SETCOLOR DEF_COLOR("灰色")
+	PRINTPLAINFORM %LOCALS%
+	RESETCOLOR
+ENDIF
+PRINT ┃
+
+;打印卡片的末尾行数
+@PRINT_CARD_DOWN, ARG
+PRINT ┗
+FOR LOCAL, 0 , ARG-4
+	PRINT -
+NEXT
+PRINT ┛
+
+@PRINT_UNUSABLE_BUTTON,ARGS
+SETCOLOR DEF_COLOR("灰色")
+PRINTPLAINFORM %ARGS%
+PRINTL
+RESETCOLOR

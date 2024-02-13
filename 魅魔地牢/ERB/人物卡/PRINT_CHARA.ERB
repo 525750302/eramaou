@@ -1,0 +1,531 @@
+﻿;-------------------------------------------------
+;打印人物表
+;目前的话还没有非常详细的H素质相关的
+;使用BAR来表示攻撃力最大生命值防御力等数据
+;ARG为对象的角色编号
+;ARG:1为打印模式。 当为1时表示并不是打印某个具体的对象
+;-------------------------------------------------
+@PRINT_CHARA,ARG, ARG:1
+#DIM RANK
+;种族
+#DIM RACE
+#DIM MEMO_LINECOUNT
+#DIM MEMO_SKILL_LINECOUNT
+;决定显示哪些技能介绍
+#DIM SKILL_STATE,25
+;决定显示哪些属性
+#DIM PRINT_STATE,10
+;决定是否显示具体介绍
+#DIM PAPER_STATE
+#DIM COUNT1
+#DIM COUNT2
+#DIM CHOICE
+#DIMS TEXT_STACK
+#DIM MODE
+
+RACE = BASE:ARG:种族
+VARSET SKILL_STATE
+PRINT_STATE:0 = 1
+PRINT_STATE:1 = 1
+PRINT_STATE:2 = 1
+MODE = ARG:1
+
+$PRINT_CHARA
+MEMO_LINECOUNT = LINECOUNT
+PRINTL
+PRINTL
+
+;-----------------------------------------------
+;预计制作式样
+;
+;==============================================
+;                    引用
+;
+;                       名字
+;◇战斗属性=====================================
+; Lv.レベル(20格)  (6格)  星级(20格)
+;种族名:(22格) (6格) 标签:(20格)
+;           
+;  生命:9999    初始生命值/500的BAR
+;  攻击:9999    初始攻撃力/100的BAR
+;  防御:9999    初始防御力/100的BAR
+;  速度:9999    速度/6的BAR
+;  精液:9999    精液/子宫容量的BAR
+
+;  冰: 火: 电: 酸: 风: 暗: 光: 喜び:
+
+;  装备武器
+;  上身护甲：(21格)下身护甲(21格)
+;----------------------------------------------
+;技能名字：技能描述
+;
+;♥性战斗属性=====================================
+;打印ABL 一行6个
+;用级别表示
+;未持有的属性未灰色 持有未黄色
+;=================================================
+;返回   下一页(上一页)
+IF PAPER_STATE == 0
+    DRAWLINEFORM =
+    TRYCALLFORM SUCCUBUS_INTRO_{RACE}
+    CALL PRINTQUOTE, TEXT_RETURN:0, TEXT_RETURN:1
+    PRINTL
+    PRINTL
+
+    ALIGNMENT CENTER
+    ;打印モンスター名
+    FONTITALIC
+    IF MODE == 0
+        CALL CALL_SUCCUBUS_NAME,ARG,0
+    ELSE
+        TRYCALLFORM SUCCUBUS_NAME_{RACE}
+    ENDIF
+    LOCALS =  %TEXT_RETURN:0%
+    LOCALS = %TEXT_CJ(LOCALS,20)%
+    PRINTFORML %LOCALS%
+    FONTREGULAR
+    ALIGNMENT LEFT
+
+    IF PRINT_STATE:0 == 1
+        CALL DRAWLINES_DIY,"◇ 戦闘能力", 100, "="
+    ELSE
+        CALL DRAWLINES_DIY,"◆ 戦闘能力", 100, "="
+    ENDIF
+
+    IF PRINT_STATE:0 == 1
+        CALL PRINT_FIGHT_ABL,ARG
+    ENDIF
+
+    ;魔法抗性
+    PRINTL
+    PRINTFORM %BL(1)%
+    TEXT_STACK = 冰：%TEXTS("属性抗性", CFLAG:ARG:311)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 火：%TEXTS("属性抗性", CFLAG:ARG:312)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 电：%TEXTS("属性抗性", CFLAG:ARG:313)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 酸：%TEXTS("属性抗性", CFLAG:ARG:314)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 风：%TEXTS("属性抗性", CFLAG:ARG:315)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 光：%TEXTS("属性抗性", CFLAG:ARG:316)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 暗：%TEXTS("属性抗性", CFLAG:ARG:317)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    TEXT_STACK = 聖：%TEXTS("属性抗性", CFLAG:ARG:318)%
+    CALL PRINT_STR,@"%TEXT_LJ(TEXT_STACK, 10)%"
+    PRINTL 
+    PRINTL 
+
+    IF MODE == 0
+        PRINTFORM %BL(2)%武器：
+        CALL RESET_TEXT_RETURN
+        TEXT_RETURN:0 = 空
+        TRYCALLFORM WEAPON_NAME_{CFLAG:ARG:武器}
+        CALL PRINT_BUTTON_17,TEXT_RETURN:0,300,1
+        PRINTL
+
+        PRINTFORM %BL(2)%上身：
+        CALL RESET_TEXT_RETURN
+        TEXT_RETURN:0 = 空
+        TRYCALLFORM WEAPON_NAME_{CFLAG:ARG:上身护甲}
+        CALL PRINT_BUTTON_17,TEXT_RETURN:0,301,1
+
+        PRINTFORM %BL(2)%下身：
+        CALL RESET_TEXT_RETURN
+        TEXT_RETURN:0 = 空
+        TRYCALLFORM WEAPON_NAME_{CFLAG:ARG:下身护甲}
+        CALL PRINT_BUTTON_17,TEXT_RETURN:0,302,1
+
+        PRINTL
+        PRINTL
+    ENDIF
+
+    IF PRINT_STATE:1 == 1
+        CALL DRAWLINES_DIY,"◇ SKILL", 101, "-"
+    ELSE 
+        CALL DRAWLINES_DIY,"◆ SKILL", 101, "-"
+    ENDIF
+
+    IF PRINT_STATE:1 == 1
+        FOR COUNT1,0,BASE:ARG:技能数
+            TRYCALLFORM SUCCUBUS_SKILL_INTRO_{RACE},COUNT1,ARG
+            LOCALS = ■[%TEXT_RETURN:0%]
+            LOCALS = %TEXT_LJ(LOCALS,20)%
+            SIF SKILL_STATE:COUNT1 == 1
+                SETCOLOR DEF_COLOR("绿色")
+            PRINTBUTTON LOCALS,COUNT1
+            RESETCOLOR
+
+            IF SKILL_STATE:(COUNT1 + 1) == 1
+                IF SKILL_STATE:COUNT1 == 0
+                    PRINTL
+                ENDIF
+            ENDIF
+
+            IF SKILL_STATE:COUNT1 == 1
+                PRINTL
+                FOR COUNT2,1,RESULT
+                    CALL PRINT_STRL,@"%TEXT_RETURN:COUNT2%"
+                NEXT
+                PRINTL
+            ENDIF
+            IF COUNT1 == BASE:ARG:技能数-1
+                IF SKILL_STATE:COUNT1 == 0
+                    PRINTL
+                    PRINTL
+                ENDIF
+            ENDIF
+        NEXT
+    ENDIF
+
+    ;因为没有实装所以暂时隐藏
+    ;CALL DRAWLINES_DIY,"♥ 性战斗能力", 102, "-"
+    ;IF PRINT_STATE:2 == 1
+    ;    CALL PRINT_SUCCUBUS_ABL,ARG
+    ;ENDIF
+
+    PRINTL
+    DRAWLINEFORM =
+ELSEIF PAPER_STATE == 1
+    SETCOLOR 0xFFC0CB
+    CALL DRAWLINES_CENTER,"◆  資料  ◆"
+    RESETCOLOR
+    PRINTL
+
+    TRYCALLFORM SUCCUBUS_INTRO_{RACE}
+    FOR COUNT1,2,RESULT
+        CALL PRINT_STR, @"%TEXT_RETURN:COUNT1%"
+        PRINTW
+    NEXT
+
+ENDIF
+
+LOCALS = [200]戻る
+PRINTFORM %TEXT_LJ(LOCALS,17)%
+IF PAPER_STATE == 0
+    LOCALS = [201]次のページ
+ELSE
+    LOCALS = [201]前のページ
+ENDIF
+
+PRINTFORM %TEXT_LJ(LOCALS,17)%
+IF MODE == 0
+    IF ARG!= MASTER
+        LOCALS = [203]派遣
+    ENDIF
+
+    PRINTFORM %TEXT_LJ(LOCALS,17)%
+
+    LOCALS = [204]NAME変更
+    PRINTFORM %TEXT_LJ(LOCALS,17)%
+ENDIF
+$INPUT_LOOP
+INPUT
+
+CHOICE = RESULT
+SELECTCASE CHOICE
+    CASE 100
+        PRINT_STATE:0 = (PRINT_STATE:0 + 1) % 2
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO PRINT_CHARA
+    CASE 101
+        PRINT_STATE:1 = (PRINT_STATE:1 + 1) % 2
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO PRINT_CHARA
+    CASE 102
+        PRINT_STATE:2 = (PRINT_STATE:2 + 1) % 2
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO PRINT_CHARA
+    CASE 0 TO 20
+        SKILL_STATE:CHOICE = (SKILL_STATE:CHOICE + 1) % 2
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO PRINT_CHARA
+    CASE 200
+        RETURN
+    CASE 201
+        PAPER_STATE = (PAPER_STATE + 1) % 2
+        GOTO PRINT_CHARA
+    CASE 203
+        CALL SET_SUCCUBUS, ARG
+
+    CASE 204
+        CALL CHANGE_NAME,ARG
+
+    CASE 300 TO 303
+        IF CFLAG:ARG:CHOICE != 0
+            PRINTFORML [100]情報検査
+        ENDIF
+        PRINTFORML [101]装備変更
+        PRINTFORML [102]戻る
+        CALL INPUT_SELECT,1,100,101,102
+        SELECTCASE RESULT
+        CASE 100
+            CALL PRINT_WEAPON, CFLAG:ARG:CHOICE
+        
+        CASE 101
+            IF CFLAG:ARG:CHOICE != 0
+                CALL SET_WEAPON,ARG,CFLAG:ARG:CHOICE
+            ELSE
+                CALL SET_WEAPON,ARG,(-CHOICE + 300)
+            ENDIF
+        CASE 102
+            CLEARLINE MEMO_LINECOUNT - LINECOUNT
+            RESTART
+        ENDSELECT
+    
+    CASEELSE
+        GOTO INPUT_LOOP
+ENDSELECT
+
+;---------------------------------------------------
+;打印战斗能力
+;ARG为角色编号
+@PRINT_FIGHT_ABL,ARG
+#DIM RACE
+#DIM RANK
+#DIM COUNT1
+#DIM COUNT2
+
+RACE = BASE:ARG:种族
+;打印レベル
+FONTBOLD
+FONTITALIC
+PRINT  Lv.
+FONTREGULAR
+
+LOCALS = {BASE:ARG:レベル}
+PRINTFORM %TEXT_LJ(LOCALS,6)%
+
+CALL PRINT_CHARA_BL
+;打印星级
+IF ARG == MASTER
+    RANK = NUM("魔王星级", RACE)
+ELSE
+    RANK = BASE:ARG:星级
+ENDIF
+PRINT 星级:
+LOCALS:1 = 
+IF ARG == MASTER
+    FOR LOCAL,0,RANK
+        LOCALS:1 = %LOCALS:1%★
+    NEXT
+    LOCALS:1 = %TEXT_LJ(LOCALS:1,20)%
+    CALL PRINT_STR,@"_黄色_%LOCALS:1%"
+ELSEIF RANK > 5
+    FOR LOCAL,0,RANK - 5
+        LOCALS:1 = %LOCALS:1%★
+    NEXT
+    LOCALS:1 = %TEXT_LJ(LOCALS:1,20)%
+    CALL PRINT_STR,@"%LOCALS:1%"
+ELSE
+    FOR LOCAL,0,RANK
+        LOCALS:1 = %LOCALS:1%☆
+    NEXT
+    LOCALS:1 = %TEXT_LJ(LOCALS:1,20)%
+    CALL PRINT_STR,@"%LOCALS:1%"
+ENDIF
+PRINTL
+
+;打印种族名
+TRYCALLFORM SUCCUBUS_NAME_{RACE}
+
+LOCALS = 種族: %TEXT_RETURN:0%
+LOCALS = %TEXT_LJ(LOCALS,22)%
+PRINTFORM %LOCALS%
+
+;打印标签
+LOCALS = tags:
+CALL SUCCUBUS_LABLE,ARG
+LOCALS = %LOCALS%%TEXT_LJ(TEXT_RETURN:0,20)%
+PRINTFORM %LOCALS%
+
+PRINTL
+PRINTL
+
+;  生命:9999    初始生命值/500的BAR
+LOCALS = 生命:
+LOCALS:1 = {BASE:ARG:HP}
+LOCALS = %BL(2)%%LOCALS%%TEXT_LJ(LOCALS:1,6)%
+PRINTFORM %LOCALS%
+
+CALL PRINT_CHARA_BL
+PRINT 生命能力 
+TRYCALLFORM SUCCUBUS_START_HP_{RACE}
+LOCAL = RESULT
+CALL PRINT_BAR,"属性",LOCAL,1000,25
+PRINTL
+
+;  攻击:9999    初始攻撃力/100的BAR
+LOCALS = 攻撃:
+LOCALS:1 = {BASE:ARG:攻撃力}
+LOCALS = %BL(2)%%LOCALS%%TEXT_LJ(LOCALS:1,6)%
+PRINTFORM %LOCALS%
+
+
+CALL PRINT_CHARA_BL
+PRINT 攻撃能力 
+TRYCALLFORM SUCCUBUS_START_ATT_{RACE}
+LOCAL = RESULT
+CALL PRINT_BAR,"属性",LOCAL,100,25
+PRINTL
+
+;  防御:9999    初始防御力/100的BAR
+LOCALS = 防御:
+LOCALS:1 = {BASE:ARG:防御力}
+LOCALS = %BL(2)%%LOCALS%%TEXT_LJ(LOCALS:1,6)%
+PRINTFORM %LOCALS%
+
+
+CALL PRINT_CHARA_BL
+PRINT 防御能力 
+TRYCALLFORM SUCCUBUS_START_DEF_{RACE}
+LOCAL = RESULT
+CALL PRINT_BAR,"属性",LOCAL,100,25
+PRINTL
+
+;  速度:9999    速度/6的BAR
+LOCALS = 速度:
+LOCALS:1 = {BASE:ARG:速度}
+LOCALS = %BL(2)%%LOCALS%%TEXT_LJ(LOCALS:1,6)%
+PRINTFORM %LOCALS%
+
+
+CALL PRINT_CHARA_BL
+
+PRINT 速度能力 
+TRYCALLFORM SUCCUBUS_START_SPEED_{RACE}
+LOCAL = RESULT
+CALL PRINT_BAR,"属性",LOCAL,6,25
+PRINTL
+
+;  精液:9999    精液/子宫容量的BAR
+LOCALS = 経験:
+LOCALS:1 = {BASE:ARG:精液}/{BASE:ARG:子宫容量}
+LOCALS = %BL(2)%%LOCALS%%TEXT_LJ(LOCALS:1,6)%
+PRINTFORM %LOCALS%
+
+CALL PRINT_CHARA_BL
+
+PRINT 経験状態 
+LOCAL = BASE:ARG:精液
+LOCAL:1 = BASE:ARG:子宫容量
+CALL PRINT_BAR,"属性",LOCAL,LOCAL:1,25
+PRINTL
+
+;---------------------------------------------------
+;打印间距
+@PRINT_CHARA_BL
+PRINTFORM %BL(6)%
+
+
+;---------------------------------------------------
+;打印性战斗能力
+@PRINT_SUCCUBUS_ABL,ARG
+#DIM COUNT1
+#DIM COUNT2
+
+COUNT2 = 0
+FOR COUNT1,0,60
+    IF ABLNAME:COUNT1 != ""
+        LOCALS = {ABL:ARG:COUNT1}
+        PRINTFORM %TEXT_RJ(ABLNAME:COUNT1,10)%:%TEXT_LJ(LOCALS,2)%
+        IF COUNT1<20
+            CALL PRINT_RANK,ABL:ARG:COUNT1,10
+        ELSE
+            CALL PRINT_RANK,ABL:ARG:COUNT1,5
+        ENDIF
+        COUNT2 += 1
+        IF COUNT2 % 5 == 0
+            PRINTL
+        ENDIF
+    ENDIF
+NEXT
+PRINTL
+
+COUNT2 = 0
+FOR COUNT1,60,70
+    IF ABLNAME:COUNT1 != ""
+        IF ABL:ARG:COUNT1 == 0
+            SETCOLOR 0x707070
+        ELSE
+            SETCOLOR 0xEFD540
+        ENDIF
+        PRINTFORM %TEXT_RJ(ABLNAME:COUNT1,10)%
+        PRINTFORM %BL(7)%
+        RESETCOLOR
+        COUNT2 += 1
+        IF COUNT2 % 5 == 0
+            PRINTL
+        ENDIF        
+    ENDIF
+NEXT
+PRINTL
+
+;返回角色的标签
+;ARG为角色编号
+@SUCCUBUS_LABLE, ARG
+#DIM COUNT1
+#DIM COUNT2
+VARSET TEXT_RETURN
+LOCALS = 
+FOR COUNT1,10,50
+    IF TALENT:ARG:COUNT1
+        LOCALS = %LOCALS%[%TALENTNAME:COUNT1%]
+    ENDIF
+NEXT
+IF ARG == MASTER
+    LOCALS = %LOCALS%[魔王]
+    ENDIF
+TEXT_RETURN:0 = %LOCALS%
+RETURN
+
+;-----------------
+;更改モンスター的名字
+;要求同时更改昵称和简称
+;字数要求分别是10字以内和5字以内
+@CHANGE_NAME,ARG
+#DIM SAVE_NAME
+#DIM MEMO_LINECOUNT
+PRINTL 
+PRINTL
+
+MEMO_LINECOUNT = LINECOUNT
+
+$INPUTS_NAME_1
+LOCALS = 入力（_黄色_10 文字_以下、入力がない場合は元の名前が保持されます）
+CALL PRINT_STRL,@"%LOCALS%"
+LOCALS = 
+INPUTS
+LOCALS = %RESULTS%
+
+IF STRLENS(LOCALS) != 0
+    IF STRLENS(LOCALS)<20
+        CSTR:ARG:昵称 = %LOCALS%
+    ELSE
+        PRINTFORML 入力文字が長いすぎ
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO INPUTS_NAME_1
+    ENDIF
+ENDIF
+
+MEMO_LINECOUNT = LINECOUNT
+$INPUTS_NAME_2
+LOCALS =  ニックネーム（_黄色_5 文字_以下、入力がない場合は元の名前が保持されます）
+CALL PRINT_STRL,@"%LOCALS%"
+LOCALS = 
+INPUTS
+LOCALS = %RESULTS%
+
+IF STRLENS(LOCALS) != 0
+    IF STRLENS(LOCALS)<10
+        CSTR:ARG:简称 = %LOCALS%
+    ELSE
+        PRINTFORML 入力文字が長いすぎ
+        CLEARLINE LINECOUNT - MEMO_LINECOUNT
+        GOTO INPUTS_NAME_2
+    ENDIF
+ENDIF
+
+RETURN 

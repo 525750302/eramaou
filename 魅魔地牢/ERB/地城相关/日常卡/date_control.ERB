@@ -1,0 +1,182 @@
+﻿;-------------------------------------------------
+;每日进程相关
+;ARG代表选择了哪一张 0为左 1为中 2为右
+;-------------------------------------------------
+@DAILY_CHANGE,ARG
+
+DAY += 1
+FOR LOCAL:0,1,4
+    FOR LOCAL:1,ARG,2*LOCAL:0+1+ARG
+        DATE:(LOCAL:0 - 1):(LOCAL:1 - ARG) = DATE:(LOCAL:0):(LOCAL:1)
+    NEXT
+NEXT
+
+FOR LOCAL,0,9
+    DATE:3:LOCAL = DATE_RANDOM()
+NEXT
+
+VARSET ENEMY,0
+VARSET ENEMY_LOCATION_X,0
+VARSET ENEMY_LOCATION_Y,0
+VARSET ENEMY_FIGHTING,-1
+VARSET ENEMY_HP,0
+VARSET ENEMY_NOW_HP,0
+VARSET ENEMY_ATT,0
+VARSET ENEMY_DEF,0
+VARSET ENEMY_SPEED,0
+VARSET ENEMY_RESISTANT,0
+VARSET ENEMY_MAGIC_RESIST,0
+VARSET ENEMY_DUNGEON_LOCATION,0
+VARSET ENEMY_STATE,0
+VARSET DUNGEON_CONTAIN,-1
+
+FOR LOCAL,50,250
+    CVARSET CFLAG,LOCAL,0
+NEXT
+
+;-------------------------------------------------
+;生成每日的日程卡
+;0为普通战斗 1为精英战斗 2为城市活动 3为随机事件 4为旅行モンスター 5为魔界支援
+;-------------------------------------------------
+@DATE_RANDOM
+#FUNCTION
+LOCAL = RAND:100
+SELECTCASE LOCAL
+    CASE 0 TO 54
+        RETURNF 0
+    CASE 55 TO 69
+        RETURNF 1
+    CASE 70 TO 79
+        RETURNF 2
+    CASE 80 TO 89
+        RETURNF 3
+    CASE 90 TO 96
+        RETURNF 4
+    CASE 97 TO 99
+        RETURNF 5
+ENDSELECT
+
+;-------------------------------------------------
+;初始化每日进程
+;-------------------------------------------------
+@DATE_INIT
+#DIM LCOUNT2
+
+VARSET DATE, 0
+FOR LOCAL:0,0,4
+    FOR LOCAL:1,0,2*LOCAL:0+3
+        DATE:(LOCAL:0):(LOCAL:1) = DATE_RANDOM()
+    NEXT
+NEXT
+
+@RETURN_DATE_TEXT(ARG)
+#FUNCTIONS
+SELECTCASE ARG
+    CASE 0
+        LOCALS = 普通戦闘
+    CASE 1
+        LOCALS = 精英戦闘
+    CASE 2
+        LOCALS = 社会活動
+    CASE 3
+        LOCALS = イベント
+    CASE 4
+        LOCALS = 旅行商人
+    CASE 5
+        LOCALS = 魔界支援
+ENDSELECT
+
+RETURNF LOCALS
+
+@RETURN_DATE_COLOR(ARG,ARG:1)
+SELECTCASE ARG
+    CASE 0
+        ;1
+        LOCALS = ♥
+        CALL PRINT_STR,@"_赤_%TEXT_CJ_DATE(LOCALS,ARG:1)%"
+    CASE 1
+        LOCALS = ♠
+        CALL PRINT_STR,@"_蓝色_%TEXT_CJ_DATE(LOCALS,ARG:1)%"
+    CASE 2
+        LOCALS = ♦
+        CALL PRINT_STR,@"_暗黄色_%TEXT_CJ_DATE(LOCALS,ARG:1)%"
+    CASE 3
+        LOCALS = ♣
+        CALL PRINT_STR,@"_绿_%TEXT_CJ_DATE(LOCALS,ARG:1)%"
+    CASE 4
+        LOCALS = ♀
+        CALL PRINT_STR,@"_爱心粉红_%TEXT_CJ_DATE(LOCALS,ARG:1)%"
+    CASE 5
+        LOCALS = ♂
+        CALL PRINT_STR,@"_紫色_%TEXT_CJ_DATE(LOCALS,ARG:1)%"
+ENDSELECT
+
+RETURN
+
+
+;-------------------------------------------------
+;打印日程
+;-------------------------------------------------
+@PRINT_DATE
+#DIM LCOUNT2
+#DIM LCOUNT
+
+CALL DRAWLINES_CENTER,"DAILY EVENT"
+ALIGNMENT CENTER
+
+FOR LCOUNT,2,0,-1
+    FOR LCOUNT2,0,2*LCOUNT+3
+        PRINTFORM ┌--------┐
+    NEXT
+    PRINTL
+    FOR LCOUNT2,0,2*LCOUNT+3
+        PRINTFORM   %RETURN_DATE_TEXT(DATE:LCOUNT:LCOUNT2)%  
+    NEXT
+    PRINTL
+    FOR LCOUNT2,0,2*LCOUNT+3
+        CALL RETURN_DATE_COLOR,DATE:LCOUNT:LCOUNT2,12
+    NEXT
+    PRINTL
+    FOR LCOUNT2,0,2*LCOUNT+3
+        PRINTFORM └--------┘
+    NEXT
+    PRINTFORML 
+NEXT
+
+FOR LCOUNT2,0,2*LCOUNT+3
+    PRINTFORM ┌------------┐
+NEXT
+PRINTL
+FOR LCOUNT2,0,2*LCOUNT+3
+    PRINTFORM ┆            ┆
+NEXT
+PRINTL
+
+FOR LCOUNT2,0,2*LCOUNT+3
+    PRINTFORM      [ {300+LCOUNT2}]     
+NEXT
+PRINTL
+
+FOR LCOUNT2,0,2*LCOUNT+3
+    PRINT     
+    LOCALS = %RETURN_DATE_TEXT(DATE:LCOUNT:LCOUNT2)%
+    PRINTBUTTON LOCALS, (300+LCOUNT2)
+    PRINT     
+NEXT
+PRINTL
+
+FOR LCOUNT2,0,2*LCOUNT+3
+    CALL RETURN_DATE_COLOR,DATE:LCOUNT:LCOUNT2,16
+NEXT
+PRINTL
+FOR LCOUNT2,0,2*LCOUNT+3
+    PRINTFORM ┆            ┆
+NEXT
+PRINTL
+FOR LCOUNT2,0,2*LCOUNT+3
+    PRINTFORM └------------┘
+NEXT
+PRINTFORML 
+PRINTFORML 
+
+DRAWLINEFORM ❤
